@@ -340,7 +340,7 @@
             const [processing, setProcessing] = useState(false);
             const c = {blue:"bg-blue-600 hover:bg-blue-700 text-white", red:"bg-red-600 hover:bg-red-700 text-white", green:"bg-emerald-600 hover:bg-emerald-700 text-white", gray:"bg-slate-100 hover:bg-slate-200 text-slate-700", yellow:"bg-amber-500 hover:bg-amber-600 text-white", purple:"bg-purple-600 hover:bg-purple-700 text-white"};
             const handleClick = async () => { if(processing || disabled) return; setProcessing(true); try { await onClick(); } catch(e) { console.error(e); alert("錯誤: " + e.message); } finally { setProcessing(false); } };
-            return <button onClick={handleClick} disabled={disabled || processing} className={`px-4 py-2 rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed ${c[color||'blue']} ${className||''}`}>{processing ? '⏳...' : children}</button>
+            return <button onClick={handleClick} disabled={disabled || processing} className={`cursor-pointer px-4 py-2 rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed ${c[color||'blue']} ${className||''}`}>{processing ? '⏳...' : children}</button>
         };
 
         const Card = ({children, className}) => <div className={`bg-white p-5 rounded-xl shadow-sm border border-slate-200 ${className}`}>{children}</div>;
@@ -359,7 +359,7 @@
             }, []);
             return <Button color="gray" className="text-xs px-2 py-1" onClick={toggleFullscreen}>{isFs ? '🗗 視窗' : '⛶ 全螢幕'}</Button>;
         };
-        const ConfirmModal = ({ title, message, onConfirm, onCancel }) => (<div className="custom-modal-overlay"><div className="custom-modal text-center"><h3 className="text-xl font-bold text-red-600 mb-2">{title}</h3><p className="text-gray-600 mb-6 whitespace-pre-line">{message}</p><div className="flex gap-4 justify-center"><button onClick={onCancel} className="px-4 py-2 bg-gray-200 rounded-lg text-gray-700 font-bold hover:bg-gray-300">取消</button><button onClick={onConfirm} className="px-4 py-2 bg-red-600 rounded-lg text-white font-bold hover:bg-red-700">確認執行</button></div></div></div>);
+        const ConfirmModal = ({ title, message, onConfirm, onCancel }) => (<div className="custom-modal-overlay"><div className="custom-modal text-center"><h3 className="text-xl font-bold text-red-600 mb-2">{title}</h3><p className="text-gray-600 mb-6 whitespace-pre-line">{message}</p><div className="flex gap-4 justify-center"><button onClick={onCancel} className="cursor-pointer px-4 py-2 bg-gray-200 rounded-lg text-gray-700 font-bold hover:bg-gray-300">取消</button><button onClick={onConfirm} className="cursor-pointer px-4 py-2 bg-red-600 rounded-lg text-white font-bold hover:bg-red-700">確認執行</button></div></div></div>);
         const PwdModal = ({ onClose, onSubmit }) => { const [p, setP] = useState(""); return <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="bg-white p-6 rounded-xl w-80 shadow-2xl"><h3 className="font-bold mb-4 text-lg">修改密碼</h3><input className="w-full p-2 border rounded mb-4" placeholder="新密碼" value={p} onChange={e=>setP(e.target.value)} /><div className="flex justify-end gap-2"><Button color="gray" onClick={onClose}>取消</Button><Button onClick={()=>onSubmit(p)}>確認</Button></div></div></div>; };
         const NewsModal = ({ onClose, onSubmit }) => { const [txt, setTxt] = useState(""); return <div className="custom-modal-overlay"><div className="custom-modal text-center"><h3 className="font-bold text-lg mb-4 text-purple-800">發布市場快訊</h3><textarea className="w-full p-2 border rounded mb-4" rows="3" placeholder="輸入新聞內容..." value={txt} onChange={e=>setTxt(e.target.value)}></textarea><div className="flex justify-end gap-2"><Button color="gray" onClick={onClose}>取消</Button><Button color="purple" onClick={()=>onSubmit(txt)}>發布</Button></div></div></div>; };
 
@@ -465,14 +465,25 @@
             </div></div>;
         };
 
-        const NewsBanner = ({ text }) => {
+        const NewsBanner = ({ text, onTeacherDismiss }) => {
             const [visible, setVisible] = useState(true);
+            const [busy, setBusy] = useState(false);
             useEffect(() => { if (text) setVisible(true); }, [text]);
             if (!text || !visible) return null;
+            const handleClose = async () => {
+                if (busy) return;
+                if (onTeacherDismiss) {
+                    setBusy(true);
+                    try { await onTeacherDismiss(); } catch(e) { console.error(e); }
+                    setBusy(false);
+                } else {
+                    setVisible(false);
+                }
+            };
             return (
                 <div className="news-ticker">
                     <div className="flex-1 text-center">📢 快訊：{text}</div>
-                    <button onClick={() => setVisible(false)} className="ml-4 text-white hover:bg-red-800 rounded px-2">✕</button>
+                    <button onClick={handleClose} disabled={busy} className="ml-4 text-white hover:bg-red-800 rounded px-2 cursor-pointer disabled:opacity-50" title={onTeacherDismiss ? "結束此則快訊（全班同步消失）" : "在我的畫面隱藏"}>✕</button>
                 </div>
             );
         };
@@ -485,7 +496,7 @@
             }, [transactions]);
             return (
                 <div className="custom-modal-overlay"><div className="custom-modal-lg">
-                    <div className="flex justify-between items-center mb-4 border-b pb-2"><h3 className="text-xl font-bold text-emerald-800">📊 財務報表</h3><button onClick={onClose} className="text-gray-500 hover:text-gray-800">✕</button></div>
+                    <div className="flex justify-between items-center mb-4 border-b pb-2"><h3 className="text-xl font-bold text-emerald-800">📊 財務報表</h3><button onClick={onClose} className="cursor-pointer text-gray-500 hover:text-gray-800">✕</button></div>
                     <div className="grid grid-cols-3 gap-4 mb-6">
                         <div className="bg-emerald-50 p-3 rounded border border-emerald-100 text-center"><div className="text-sm text-emerald-600 font-bold mb-1">總收入 (Income)</div><div className="text-xl font-bold text-emerald-700">${stats.income.toLocaleString()}</div></div>
                         <div className="bg-red-50 p-3 rounded border border-red-100 text-center"><div className="text-sm text-red-600 font-bold mb-1">總支出 (Expense)</div><div className="text-xl font-bold text-red-700">${stats.expense.toLocaleString()}</div></div>
@@ -501,7 +512,7 @@
         const ResumeModal = ({ user, comps, onClose }) => {
             const jobs = user.jobHistory || [];
             return <div className="custom-modal-overlay"><div className="custom-modal-lg">
-                <div className="flex justify-between items-center mb-3 border-b pb-2"><h3 className="text-xl font-bold text-indigo-800">📄 個人履歷表 — {user.name}</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
+                <div className="flex justify-between items-center mb-3 border-b pb-2"><h3 className="text-xl font-bold text-indigo-800">📄 個人履歷表 — {user.name}</h3><button onClick={onClose} className="cursor-pointer text-gray-500">✕</button></div>
                 <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
                     <div className="bg-slate-50 p-2 rounded"><b>家庭狀況：</b>{user.family === 'married' ? `已婚 (${user.children || 0} 名小孩)` : '單身'}</div>
                     <div className="bg-slate-50 p-2 rounded"><b>住屋：</b>{HOUSING_OPTIONS[user.housing || "none"].label}</div>
@@ -525,11 +536,11 @@
                 return (a.name || "").localeCompare(b.name || "");
             });
             return <div className="custom-modal-overlay"><div className="custom-modal-lg" style={{maxWidth: 900}}>
-                <div className="flex justify-between items-center mb-3 border-b pb-2"><h3 className="text-xl font-bold text-indigo-800">📋 學生歷程記錄</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
+                <div className="flex justify-between items-center mb-3 border-b pb-2"><h3 className="text-xl font-bold text-indigo-800">📋 學生歷程記錄</h3><button onClick={onClose} className="cursor-pointer text-gray-500">✕</button></div>
                 <div className="mb-2 flex gap-2 text-xs"><span>排序：</span>
-                    <button onClick={() => setSortKey('name')} className={`px-2 py-1 rounded ${sortKey === 'name' ? 'bg-indigo-600 text-white' : 'bg-slate-200'}`}>姓名</button>
-                    <button onClick={() => setSortKey('balance')} className={`px-2 py-1 rounded ${sortKey === 'balance' ? 'bg-indigo-600 text-white' : 'bg-slate-200'}`}>存款</button>
-                    <button onClick={() => setSortKey('salary')} className={`px-2 py-1 rounded ${sortKey === 'salary' ? 'bg-indigo-600 text-white' : 'bg-slate-200'}`}>薪資</button>
+                    <button onClick={() => setSortKey('name')} className={`cursor-pointer px-2 py-1 rounded ${sortKey === 'name' ? 'bg-indigo-600 text-white' : 'bg-slate-200'}`}>姓名</button>
+                    <button onClick={() => setSortKey('balance')} className={`cursor-pointer px-2 py-1 rounded ${sortKey === 'balance' ? 'bg-indigo-600 text-white' : 'bg-slate-200'}`}>存款</button>
+                    <button onClick={() => setSortKey('salary')} className={`cursor-pointer px-2 py-1 rounded ${sortKey === 'salary' ? 'bg-indigo-600 text-white' : 'bg-slate-200'}`}>薪資</button>
                 </div>
                 <div className="overflow-x-auto">
                 <table className="report-table text-xs"><thead><tr>
@@ -620,7 +631,7 @@
                 </div>
             );
             return <div className="custom-modal-overlay"><div className="custom-modal-lg">
-                <div className="flex justify-between items-center mb-3 border-b pb-2"><h3 className="text-xl font-bold text-amber-700">🏆 學期結算 / 頒獎</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
+                <div className="flex justify-between items-center mb-3 border-b pb-2"><h3 className="text-xl font-bold text-amber-700">🏆 學期結算 / 頒獎</h3><button onClick={onClose} className="cursor-pointer text-gray-500">✕</button></div>
                 <Award title="🏢 頂尖企業 (資本額 ≥ 1000萬)" color="bg-amber-50 border-amber-500" content={s.topEnterprises.length ? s.topEnterprises.join('、') : '無'} />
                 <Award title="😊 幸福企業 (全員薪資 ≥ 5萬)" color="bg-pink-50 border-pink-500" content={s.happyEnterprises.length ? s.happyEnterprises.join('、') : '無'} />
                 <Award title="🥇 Top Sales (累計利潤最高之業務經理)" color="bg-blue-50 border-blue-500" content={s.topSalesUser ? `${s.topSalesUser.name} (累計利潤 $${(s.topSalesUser.cumulativeProfit || 0).toLocaleString()})` : '無'} />
@@ -649,7 +660,7 @@
             return <div className="custom-modal-overlay"><div className="custom-modal-lg">
                 <div className="flex justify-between items-center mb-3 border-b pb-2">
                     <h3 className={`text-xl font-bold ${isVat ? 'text-blue-800' : 'text-amber-800'}`}>{isVat ? '📅 月結營業稅 (5%)' : '📆 期末營所稅 (20%)'}</h3>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-800">✕</button>
+                    <button onClick={onClose} className="cursor-pointer text-gray-500 hover:text-gray-800">✕</button>
                 </div>
                 <div className="text-xs text-slate-500 mb-3">
                     {isVat ? '銷售營收 × 5%（自上次結算後的新增銷售額）' : '淨利（銷售收入 − 營業支出）× 20%，虧損公司不扣稅'}
@@ -718,7 +729,7 @@
             const showProc = !scope || scope === 'all' || scope === 'procure';
 
             return <div className="custom-modal-overlay"><div className="custom-modal-lg">
-                <div className="flex justify-between items-center mb-3 border-b pb-2"><h3 className="text-xl font-bold text-blue-800">📈 數據圖表 — {c.name}</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
+                <div className="flex justify-between items-center mb-3 border-b pb-2"><h3 className="text-xl font-bold text-blue-800">📈 數據圖表 — {c.name}</h3><button onClick={onClose} className="cursor-pointer text-gray-500">✕</button></div>
                 <Section title="💰 財務：收入 vs 支出 (折線圖)" when={showFinance}>
                     <LineChartSVG data={lineData} label="交易金額（含正負）" color="#2563eb" />
                     <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
@@ -753,7 +764,7 @@
 
         const TeacherChartsPicker = ({ comps, onClose, onPick }) => {
             return <div className="custom-modal-overlay"><div className="custom-modal">
-                <div className="flex justify-between items-center mb-3"><h3 className="font-bold text-lg text-blue-800">📊 選擇要查看的公司</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
+                <div className="flex justify-between items-center mb-3"><h3 className="font-bold text-lg text-blue-800">📊 選擇要查看的公司</h3><button onClick={onClose} className="cursor-pointer text-gray-500">✕</button></div>
                 <div className="grid grid-cols-2 gap-2">
                     {Object.values(comps).map(c => (<Button key={c.id} color="blue" className="text-sm" onClick={() => onPick(c)}>{c.name}</Button>))}
                 </div>
@@ -808,7 +819,7 @@
                 <div className="bg-amber-50 p-3 rounded border border-amber-200">
                     <div className="flex justify-between items-center mb-2">
                         <h4 className="font-bold text-sm text-amber-800">🏬 向虛擬上游採購 (價格浮動 ±5%)</h4>
-                        <button onClick={()=>setNonce(n=>n+1)} className="text-xs px-2 py-0.5 bg-amber-200 hover:bg-amber-300 rounded">🔄 重新報價</button>
+                        <button onClick={()=>setNonce(n=>n+1)} className="cursor-pointer text-xs px-2 py-0.5 bg-amber-200 hover:bg-amber-300 rounded">🔄 重新報價</button>
                     </div>
                     <div className="space-y-2">
                         <select className="w-full p-2 border rounded text-xs" value={selectedIdx} onChange={e=>setSelectedIdx(e.target.value)}>
@@ -982,6 +993,7 @@
             const doLogout = () => { localStorage.removeItem('CE_UID'); localStorage.removeItem('CE_IS_TEACHER'); localStorage.removeItem('CE_LAST_VIEW'); localStorage.removeItem('CE_CLS'); setCls(null); setUser(null); setView('class_select'); };
             const handleChangePassword = async (newPwd) => { if(!newPwd || newPwd.length < 1) return notify("密碼不能為空"); try { const { doc, updateDoc, setDoc } = window.firebaseModules; if (view === 'teacher') { await setDoc(doc(db, 'artifacts', DB_VERSION, 'settings', 'teacher'), { password: newPwd }, {merge:true}); setTPwd(newPwd); notify("老師密碼已更新"); } else if (user) { await updateDoc(doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'users', user.id), { password: newPwd }); notify("個人密碼已更新"); } setShowPwdModal(false); } catch(e) { notify("修改失敗"); } };
             const updateNews = async (txt) => { if(!txt) return notify("請輸入內容"); const { doc, setDoc } = window.firebaseModules; await setDoc(doc(db, 'artifacts', DB_VERSION, 'settings', 'teacher'), { news: txt }, {merge: true}); notify("新聞已發布"); setShowNewsModal(false); };
+            const clearGlobalNews = async () => { const { doc, setDoc } = window.firebaseModules; await setDoc(doc(db, 'artifacts', DB_VERSION, 'settings', 'teacher'), { news: "" }, {merge: true}); notify("📢 已結束此則快訊（全班同步）"); };
 
             const handleInitConfirm = async () => {
                 setShowResetConfirm(false);
@@ -1776,7 +1788,7 @@ if (totalPay < 0) return notify("❌ 總發放金額異常，不能發放負數�
                 <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 main-container">
                     <div className="absolute top-4 right-4"><FullscreenToggle /></div>
                     <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-sm">
-                        <button onClick={()=>{setCls(null); setView('class_select');}} className="text-sm text-slate-400 mb-4">⬅ 回選單</button>
+                        <button onClick={()=>{setCls(null); setView('class_select');}} className="cursor-pointer text-sm text-slate-400 mb-4">⬅ 回選單</button>
                         <div className="bg-blue-50 p-4 rounded-lg mb-6 border border-blue-100">
                             <h3 className="font-bold text-blue-800 mb-2">學生登入/註冊</h3>
                             <input id="sName" placeholder="姓名" className="w-full p-2 border rounded mb-2" />
@@ -2113,7 +2125,7 @@ if (totalPay < 0) return notify("❌ 總發放金額異常，不能發放負數�
             if (view === 'teacher') {
                 return (
                     <div className="min-h-screen bg-slate-100 p-4 pb-20 fade-in main-container">
-                        <NewsBanner text={globalNews} />
+                        <NewsBanner text={globalNews} onTeacherDismiss={clearGlobalNews} />
                         <header className="flex justify-between items-center mb-6 flex-wrap gap-2">
                             <h1 className="font-bold text-xl">👨‍🏫 中控台 ({CLASS_LIST.find(x=>x.id===cls)?.name})</h1>
                             <div className="flex gap-2 flex-wrap">
