@@ -1,0 +1,2272 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的科技業之路</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, collection, writeBatch, query, where, orderBy, getDocs, arrayUnion, arrayRemove, runTransaction, addDoc, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        window.firebaseModules = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, collection, writeBatch, query, where, orderBy, getDocs, arrayUnion, arrayRemove, runTransaction, addDoc, deleteDoc, increment };
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f3f4f6; }
+        .role-badge { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        .role-CEO { background: #fee2e2; color: #991b1b; }
+        .role-HR { background: #ffedd5; color: #9a3412; }
+        .role-Finance { background: #d1fae5; color: #065f46; }
+        .role-Sales { background: #dbeafe; color: #1e40af; }
+        .role-RnD { background: #f3e8ff; color: #6b21a8; }
+        .role-Procure { background: #e0e7ff; color: #3730a3; }
+        .role-default { background: #f1f5f9; color: #475569; }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .custom-modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+        .custom-modal { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); max-width: 400px; width: 90%; }
+        .custom-modal-lg { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); max-width: 600px; width: 95%; max-height: 80vh; overflow-y: auto; }
+        .notification-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1f2937; color: white; padding: 12px 24px; border-radius: 50px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); z-index: 10000; animation: bounceIn 0.5s ease-out; font-weight: bold; pointer-events: none; }
+        @keyframes bounceIn { 0% { opacity:0; transform: translateX(-50%) scale(0.8); } 60% { opacity:1; transform: translateX(-50%) scale(1.05); } 100% { transform: translateX(-50%) scale(1); } }
+        .news-ticker { background: #b91c1c; color: white; padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 0.9rem; position: fixed; top: 0; left: 0; right: 0; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .main-container { padding-top: 40px; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 2s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .report-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .report-table th, .report-table td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; }
+        .report-table th { background-color: #f8fafc; color: #64748b; }
+        .text-income { color: #059669; }
+        .text-expense { color: #dc2626; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <div id="error-log" style="display:none; position:fixed; bottom:10px; right:10px; background:white; border:2px solid red; padding:10px; z-index:9999; font-size:12px; color:red; max-height: 200px; overflow: auto;"></div>
+    <script>
+        // Fix D: 強化錯誤紀錄 — 含 column 與 stack，並攔截未捕捉的 Promise rejection
+        function _logErr(label, msg, line, col, stack) {
+            var el = document.getElementById('error-log');
+            el.style.display='block';
+            var errLine = document.createElement('div');
+            errLine.textContent = label + ': ' + msg + ' (L' + (line||'?') + ':' + (col||'?') + ')' + (stack ? '\n' + stack : '');
+            errLine.style.whiteSpace = 'pre-wrap';
+            errLine.style.borderBottom = '1px solid #fcc';
+            errLine.style.marginBottom = '4px';
+            el.appendChild(errLine);
+        }
+        window.onerror = function(msg, src, line, col, err) {
+            _logErr('Err', msg, line, col, err && err.stack);
+        };
+        window.addEventListener('unhandledrejection', function(e) {
+            var r = e.reason;
+            _logErr('Unhandled Promise', (r && r.message) ? r.message : String(r), null, null, r && r.stack);
+        });
+    </script>
+
+    <script type="text/babel" data-presets="env,react">
+        const { useState, useEffect, useMemo } = React;
+
+        // ⚠️ 安全提醒：此 Firebase 設定為前端公開金鑰，請務必在 Firebase Console 設定 Firestore Security Rules 以防止未授權存取
+        const MY_CONFIG = {
+            apiKey: "AIzaSyDnL5amcs5hkWw_Fl_1IKfAw-KJeL7QGVs",
+            authDomain: "hh-2e4b8.firebaseapp.com",
+            projectId: "hh-2e4b8",
+            storageBucket: "hh-2e4b8.firebasestorage.app",
+            messagingSenderId: "612613725839",
+            appId: "1:612613725839:web:2b58ff031d04f330cc5afa",
+            measurementId: "G-XJ4RGMGPS8"
+        };
+
+        const DB_VERSION = "class-economy-v18";
+
+        const CLASS_LIST = [{id:"class_801",name:"國二智"},{id:"class_802",name:"國二仁"},{id:"class_803",name:"國二勇"},
+            {id:"class_804",name:"國二信"},{id:"class_805",name:"國二義"},{id:"class_806",name:"國二和"},
+            {id:"class_807",name:"國二平"},{id:"class_808",name:"國二誠"}];
+        const ROLES = ["CEO", "人資經理", "財務長", "業務經理", "研發經理"];
+        const ROLE_CLASS_MAP = { "CEO": "CEO", "人資經理": "HR", "財務長": "Finance", "業務經理": "Sales", "研發經理": "RnD", "採購經理": "Procure" };
+        const INITIAL_CAPITAL = 5000000;
+        const INITIAL_PERSONAL = 20000;
+        const DEFAULT_TEACHER_PWD = "8888";
+        const TECH_UPGRADE_COST = 2000000;
+
+        const BASE_LIVING_SINGLE = 10000;
+        const BASE_LIVING_MARRIED = 15000;
+        const CHILD_COST = 20000;
+        const MAX_CHILDREN = 4;
+
+        const HOUSING_OPTIONS = {
+            none:   { key: "none",   label: "與家人同住", type: "free",   monthly: 0,     down: 0,        total: 0 },
+            rent1:  { key: "rent1",  label: "租房1 套房 (一房一衛)",        type: "rent", monthly: 15000, down: 0,        total: 0 },
+            rent2:  { key: "rent2",  label: "租房2 兩房一廳一衛",           type: "rent", monthly: 25000, down: 0,        total: 0 },
+            rent3:  { key: "rent3",  label: "租房3 三房兩廳兩衛",           type: "rent", monthly: 40000, down: 0,        total: 0 },
+            buy1:   { key: "buy1",   label: "買房1 (總價1000萬)",          type: "buy",  monthly: 30000, down: 2000000,  total: 10000000 },
+            buy2:   { key: "buy2",   label: "買房2 (總價1500萬)",          type: "buy",  monthly: 35000, down: 3000000,  total: 15000000 },
+            buy3:   { key: "buy3",   label: "買房3 (總價2000萬)",          type: "buy",  monthly: 40000, down: 4000000,  total: 20000000 }
+        };
+
+        const computeMonthlyHousing = (u) => HOUSING_OPTIONS[u?.housing || "none"]?.monthly || 0;
+        const computeBaseLiving = (u) => {
+            const fam = u?.family || "single";
+            const kids = u?.children || 0;
+            if (fam === "married") return BASE_LIVING_MARRIED + CHILD_COST * kids;
+            return BASE_LIVING_SINGLE;
+        };
+        const computeTotalLivingCost = (u) => computeBaseLiving(u) + computeMonthlyHousing(u);
+
+        const ROLE_SALARIES = { "CEO": 150000, "研發經理": 80000, "業務經理": 60000, "財務長": 60000, "人資經理": 50000, "採購經理": 55000 };
+
+        const COMPANIES_DEF = [
+            { id: "company-1", name: "台積電", type: "上游 (A)", desc: "晶圓代工" },
+            { id: "company-2", name: "大立光", type: "上游 (A)", desc: "光學鏡頭" },
+            { id: "company-3", name: "康寧", type: "上游 (A)", desc: "玻璃基板" },
+            { id: "company-4", name: "Apple", type: "中游 (C)", desc: "品牌手機" },
+            { id: "company-5", name: "Samsung", type: "中游 (C)", desc: "品牌手機" },
+            { id: "company-6", name: "ASUS", type: "中游 (C)", desc: "品牌手機" },
+            { id: "company-7", name: "PChome", type: "下游 (B)", desc: "電商通路" },
+            { id: "company-8", name: "蝦皮", type: "下游 (B)", desc: "拍賣平台" },
+            { id: "company-9", name: "燦坤", type: "下游 (B)", desc: "3C賣場" },
+            { id: "company-10", name: "Costco", type: "下游 (B)", desc: "量販店" }
+        ];
+
+        const RECIPES = {
+            "company-1": { 1: { name: "7nm 晶片", cost: 200000, yield: 100, needs: [{name:"12吋矽晶圓", qty:1}] }, 2: { name: "5nm 晶片", cost: 300000, yield: 100, needs: [{name:"12吋矽晶圓", qty:1}] }, 3: { name: "3nm 晶片", cost: 400000, yield: 100, needs: [{name:"12吋矽晶圓", qty:1}] } },
+            "company-2": { 1: { name: "標準鏡頭", cost: 100000, yield: 100, needs: [{name:"光學玻璃磚", qty:1}] }, 2: { name: "廣角鏡頭", cost: 150000, yield: 100, needs: [{name:"光學玻璃磚", qty:1}] }, 3: { name: "高階鏡頭", cost: 200000, yield: 100, needs: [{name:"光學玻璃磚", qty:1}] } },
+            "company-3": { 1: { name: "LCD 面板", cost: 150000, yield: 50, needs: [{name:"母玻璃基板", qty:1}] }, 2: { name: "LED 面板", cost: 200000, yield: 50, needs: [{name:"母玻璃基板", qty:1}] }, 3: { name: "OLED 面板", cost: 300000, yield: 50, needs: [{name:"母玻璃基板", qty:1}] } },
+            "company-4": { 1: { name: "iPhone 14", cost: 5000, yield: 1, needs: [{name:"7nm 晶片", qty:1}, {name:"標準鏡頭", qty:1}, {name:"LCD 面板", qty:1}] }, 2: { name: "iPhone 15", cost: 8000, yield: 1, needs: [{name:"5nm 晶片", qty:1}, {name:"廣角鏡頭", qty:1}, {name:"LED 面板", qty:1}] }, 3: { name: "iPhone 16 Pro", cost: 10000, yield: 1, needs: [{name:"3nm 晶片", qty:1}, {name:"高階鏡頭", qty:1}, {name:"OLED 面板", qty:1}] } },
+            "company-5": { 1: {name:"Galaxy A54", cost:5000, yield:1, needs:[{name:"7nm 晶片",qty:1},{name:"標準鏡頭",qty:1},{name:"LCD 面板",qty:1}]}, 2: {name:"Galaxy S24", cost:8000, yield:1, needs:[{name:"5nm 晶片",qty:1},{name:"廣角鏡頭",qty:1},{name:"LED 面板",qty:1}]}, 3: {name:"Galaxy S25 Ultra", cost:10000, yield:1, needs:[{name:"3nm 晶片",qty:1},{name:"高階鏡頭",qty:1},{name:"OLED 面板",qty:1}]} },
+            "company-6": { 1: {name:"Zenfone 9", cost:4000, yield:1, needs:[{name:"7nm 晶片",qty:1},{name:"標準鏡頭",qty:1},{name:"LCD 面板",qty:1}]}, 2: {name:"ROG Phone 7", cost:6000, yield:1, needs:[{name:"5nm 晶片",qty:1},{name:"廣角鏡頭",qty:1},{name:"LED 面板",qty:1}]}, 3: {name:"ROG Phone 9", cost:8000, yield:1, needs:[{name:"3nm 晶片",qty:1},{name:"高階鏡頭",qty:1},{name:"OLED 面板",qty:1}]} }
+        };
+
+        const RAW_MATS = {
+            "company-1": {name:"12吋矽晶圓", cost:150000},
+            "company-2": {name:"光學玻璃磚", cost:100000},
+            "company-3": {name:"母玻璃基板", cost:250000}
+        };
+
+        // 虛擬上游同業 — 中游/下游可向其採購完成品，無議價、無賣方審核，只需買方財務核准
+        const VIRTUAL_VENDORS = {
+            "company-1": [
+                { name: "聯電 (虛擬)", products: { "7nm 晶片": 5000, "5nm 晶片": 6500, "3nm 晶片": 8000 } },
+                { name: "三星晶圓 (虛擬)", products: { "7nm 晶片": 5500, "5nm 晶片": 7000, "3nm 晶片": 8500 } }
+            ],
+            "company-2": [
+                { name: "玉晶光 (虛擬)", products: { "標準鏡頭": 3000, "廣角鏡頭": 3800, "高階鏡頭": 4500 } },
+                { name: "Sony Lens (虛擬)", products: { "標準鏡頭": 3300, "廣角鏡頭": 4200, "高階鏡頭": 5000 } }
+            ],
+            "company-3": [
+                { name: "友達 (虛擬)", products: { "LCD 面板": 11500, "LED 面板": 13000, "OLED 面板": 15500 } },
+                { name: "LG Display (虛擬)", products: { "LCD 面板": 12500, "LED 面板": 14000, "OLED 面板": 16500 } }
+            ]
+        };
+
+        // 把所有虛擬廠價格攤平成 [{vendorName, item, basePrice}, ...]
+        const flattenVirtualQuotes = () => {
+            const list = [];
+            Object.values(VIRTUAL_VENDORS).forEach(vendors => {
+                vendors.forEach(v => {
+                    Object.entries(v.products).forEach(([item, basePrice]) => {
+                        list.push({ vendorName: v.name, item, basePrice });
+                    });
+                });
+            });
+            return list;
+        };
+
+        // 價格浮動 ±5%
+        const fluctuatePrice = (base) => {
+            const r = (Math.random() - 0.5) * 0.1; // -0.05 ~ +0.05
+            return Math.round(base * (1 + r));
+        };
+
+        // === 稅務輔助 ===
+        const VAT_RATE = 0.05;        // 營業稅 5% (每月結算)
+        const INCOME_TAX_RATE = 0.20; // 營所稅 20% (期末結算)
+        // 銷售營收（用於計算營業稅 & 營所稅）
+        const isVatRevenue = (t) => t.amount > 0 && /^(政府採購|同業訂單出貨|報價成交出貨)/.test(t.desc || "");
+        // 營業支出（用於計算營所稅淨利）
+        const isBusinessExpense = (t) => t.amount < 0 && /^(採購到貨|報價|進口|生產|發薪|研發|虛擬廠採購)/.test(t.desc || "");
+
+        const computeCompanyVatPreview = (c) => {
+            const tx = c.transactions || [];
+            const totalSales = tx.filter(isVatRevenue).reduce((s, t) => s + t.amount, 0);
+            const already = c.vatBaseSettled || 0;
+            const taxableBase = Math.max(0, totalSales - already);
+            const tax = Math.round(taxableBase * VAT_RATE);
+            return { totalSales, already, taxableBase, tax, newBase: Math.max(totalSales, already) };
+        };
+
+        const computeCompanyIncomeTaxPreview = (c) => {
+            const tx = c.transactions || [];
+            const revenue = tx.filter(isVatRevenue).reduce((s, t) => s + t.amount, 0);
+            const expense = tx.filter(isBusinessExpense).reduce((s, t) => s + Math.abs(t.amount), 0);
+            const profit = revenue - expense;
+            const tax = profit > 0 ? Math.round(profit * INCOME_TAX_RATE) : 0;
+            return { revenue, expense, profit, tax };
+        };
+
+        // === 全螢幕工具 ===
+        const enterFullscreen = () => {
+            const el = document.documentElement;
+            const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+            if (req) { try { const p = req.call(el); if (p && p.catch) p.catch(()=>{}); } catch(e){} }
+        };
+        const exitFullscreen = () => {
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) return;
+            const ex = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+            if (ex) { try { const p = ex.call(document); if (p && p.catch) p.catch(()=>{}); } catch(e){} }
+        };
+        const toggleFullscreen = () => {
+            if (document.fullscreenElement || document.webkitFullscreenElement) exitFullscreen();
+            else enterFullscreen();
+        };
+
+        const getAggregatedInventory = (inventory) => {
+            const agg = {};
+            inventory.forEach(item => {
+                if (!agg[item.name]) {
+                    agg[item.name] = { name: item.name, quantity: 0, totalCost: 0, count: 0, sources: new Set() };
+                }
+                agg[item.name].quantity += item.quantity;
+                agg[item.name].totalCost += (item.cost * item.quantity);
+                agg[item.name].count += item.quantity;
+                if (item.source) agg[item.name].sources.add(item.source);
+            });
+            return Object.values(agg).map(i => ({
+                name: i.name,
+                quantity: i.quantity,
+                avgCost: i.count > 0 ? i.totalCost / i.count : 0,
+                source: Array.from(i.sources).join(', ') || '未知'
+            }));
+        };
+
+        const deductInventory = (inventory, itemName, qty) => {
+            if (!qty || qty <= 0) throw new Error(`數量必須為正整數 (收到: ${qty})`);
+            let newInv = JSON.parse(JSON.stringify(inventory));
+            let remaining = qty;
+            const total = newInv.filter(i => i.name === itemName).reduce((sum, i) => sum + i.quantity, 0);
+            if (total < qty) throw new Error(`庫存不足: ${itemName} (剩餘: ${total}, 需求: ${qty})`);
+            for (let i = 0; i < newInv.length; i++) {
+                if (newInv[i].name === itemName) {
+                    const take = Math.min(newInv[i].quantity, remaining);
+                    newInv[i].quantity -= take;
+                    remaining -= take;
+                    if (remaining <= 0) break;
+                }
+            }
+            return newInv.filter(i => i.quantity > 0);
+        };
+
+        // 阻擋 number input 輸入小數點、負號、科學記號符號（教學系統中錢與數量皆為非負整數）
+        const blockNonInt = (e) => { if (['.', '-', 'e', 'E', '+'].includes(e.key)) e.preventDefault(); };
+
+        const getExactFifoCost = (inventory, itemName, qty) => {
+            let remaining = qty;
+            let totalCost = 0;
+            for (let i = 0; i < inventory.length; i++) {
+                if (inventory[i].name === itemName) {
+                    const take = Math.min(inventory[i].quantity, remaining);
+                    totalCost += take * (inventory[i].cost || 0);
+                    remaining -= take;
+                    if (remaining <= 0) break;
+                }
+            }
+            return qty > 0 ? totalCost / qty : 0;
+        };
+
+        const LineChartSVG = ({ data, width = 480, height = 200, color = "#2563eb", label = "" }) => {
+            if (!data || data.length === 0) return <div className="text-xs text-slate-400 text-center py-4">無資料</div>;
+            const pad = { l: 50, r: 10, t: 20, b: 30 };
+            const w = width - pad.l - pad.r;
+            const h = height - pad.t - pad.b;
+            const vals = data.map(d => d.value);
+            const maxV = Math.max(...vals, 1);
+            const minV = Math.min(...vals, 0);
+            const range = maxV - minV || 1;
+            const n = data.length;
+            const x = (i) => pad.l + (n === 1 ? w / 2 : (i * w) / (n - 1));
+            const y = (v) => pad.t + h - ((v - minV) / range) * h;
+            const points = data.map((d, i) => `${x(i)},${y(d.value)}`).join(" ");
+            return (
+                <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white border rounded">
+                    <text x={pad.l} y="14" fontSize="11" fill="#334155">{label}</text>
+                    <line x1={pad.l} y1={pad.t} x2={pad.l} y2={pad.t + h} stroke="#cbd5e1" />
+                    <line x1={pad.l} y1={pad.t + h} x2={pad.l + w} y2={pad.t + h} stroke="#cbd5e1" />
+                    <text x="5" y={pad.t + 4} fontSize="9" fill="#64748b">{maxV.toLocaleString()}</text>
+                    <text x="5" y={pad.t + h} fontSize="9" fill="#64748b">{minV.toLocaleString()}</text>
+                    <polyline fill="none" stroke={color} strokeWidth="2" points={points} />
+                    {data.map((d, i) => (<g key={i}><circle cx={x(i)} cy={y(d.value)} r="3" fill={color} /><text x={x(i)} y={pad.t + h + 14} fontSize="8" fill="#64748b" textAnchor="middle">{(d.label || "").slice(-5)}</text></g>))}
+                </svg>
+            );
+        };
+
+        const BarChartSVG = ({ data, width = 480, height = 200, color = "#10b981", label = "" }) => {
+            if (!data || data.length === 0) return <div className="text-xs text-slate-400 text-center py-4">無資料</div>;
+            const pad = { l: 50, r: 10, t: 20, b: 30 };
+            const w = width - pad.l - pad.r;
+            const h = height - pad.t - pad.b;
+            const vals = data.map(d => d.value);
+            const maxV = Math.max(...vals, 1);
+            const n = data.length;
+            const bw = (w / n) * 0.7;
+            const gap = (w / n) * 0.3;
+            return (
+                <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white border rounded">
+                    <text x={pad.l} y="14" fontSize="11" fill="#334155">{label}</text>
+                    <line x1={pad.l} y1={pad.t} x2={pad.l} y2={pad.t + h} stroke="#cbd5e1" />
+                    <line x1={pad.l} y1={pad.t + h} x2={pad.l + w} y2={pad.t + h} stroke="#cbd5e1" />
+                    <text x="5" y={pad.t + 4} fontSize="9" fill="#64748b">{maxV.toLocaleString()}</text>
+                    {data.map((d, i) => {
+                        const bh = (d.value / maxV) * h;
+                        const bx = pad.l + gap / 2 + i * (bw + gap);
+                        const by = pad.t + h - bh;
+                        return (<g key={i}>
+                            <rect x={bx} y={by} width={bw} height={bh} fill={d.color || color} />
+                            <text x={bx + bw / 2} y={by - 2} fontSize="8" fill="#334155" textAnchor="middle">{d.value.toLocaleString()}</text>
+                            <text x={bx + bw / 2} y={pad.t + h + 12} fontSize="8" fill="#64748b" textAnchor="middle">{d.label}</text>
+                        </g>);
+                    })}
+                </svg>
+            );
+        };
+
+        const Button = ({children, onClick, color, className, disabled}) => {
+            const [processing, setProcessing] = useState(false);
+            const c = {blue:"bg-blue-600 hover:bg-blue-700 text-white", red:"bg-red-600 hover:bg-red-700 text-white", green:"bg-emerald-600 hover:bg-emerald-700 text-white", gray:"bg-slate-100 hover:bg-slate-200 text-slate-700", yellow:"bg-amber-500 hover:bg-amber-600 text-white", purple:"bg-purple-600 hover:bg-purple-700 text-white"};
+            const handleClick = async () => { if(processing || disabled) return; setProcessing(true); try { await onClick(); } catch(e) { console.error(e); alert("錯誤: " + e.message); } finally { setProcessing(false); } };
+            return <button onClick={handleClick} disabled={disabled || processing} className={`px-4 py-2 rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed ${c[color||'blue']} ${className||''}`}>{processing ? '⏳...' : children}</button>
+        };
+
+        const Card = ({children, className}) => <div className={`bg-white p-5 rounded-xl shadow-sm border border-slate-200 ${className}`}>{children}</div>;
+
+        // 全螢幕切換按鈕 — 任何頁面右上角共用
+        const FullscreenToggle = () => {
+            const [isFs, setIsFs] = useState(!!(document.fullscreenElement || document.webkitFullscreenElement));
+            useEffect(() => {
+                const handler = () => setIsFs(!!(document.fullscreenElement || document.webkitFullscreenElement));
+                document.addEventListener('fullscreenchange', handler);
+                document.addEventListener('webkitfullscreenchange', handler);
+                return () => {
+                    document.removeEventListener('fullscreenchange', handler);
+                    document.removeEventListener('webkitfullscreenchange', handler);
+                };
+            }, []);
+            return <Button color="gray" className="text-xs px-2 py-1" onClick={toggleFullscreen}>{isFs ? '🗗 視窗' : '⛶ 全螢幕'}</Button>;
+        };
+        const ConfirmModal = ({ title, message, onConfirm, onCancel }) => (<div className="custom-modal-overlay"><div className="custom-modal text-center"><h3 className="text-xl font-bold text-red-600 mb-2">{title}</h3><p className="text-gray-600 mb-6 whitespace-pre-line">{message}</p><div className="flex gap-4 justify-center"><button onClick={onCancel} className="px-4 py-2 bg-gray-200 rounded-lg text-gray-700 font-bold hover:bg-gray-300">取消</button><button onClick={onConfirm} className="px-4 py-2 bg-red-600 rounded-lg text-white font-bold hover:bg-red-700">確認執行</button></div></div></div>);
+        const PwdModal = ({ onClose, onSubmit }) => { const [p, setP] = useState(""); return <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="bg-white p-6 rounded-xl w-80 shadow-2xl"><h3 className="font-bold mb-4 text-lg">修改密碼</h3><input className="w-full p-2 border rounded mb-4" placeholder="新密碼" value={p} onChange={e=>setP(e.target.value)} /><div className="flex justify-end gap-2"><Button color="gray" onClick={onClose}>取消</Button><Button onClick={()=>onSubmit(p)}>確認</Button></div></div></div>; };
+        const NewsModal = ({ onClose, onSubmit }) => { const [txt, setTxt] = useState(""); return <div className="custom-modal-overlay"><div className="custom-modal text-center"><h3 className="font-bold text-lg mb-4 text-purple-800">發布市場快訊</h3><textarea className="w-full p-2 border rounded mb-4" rows="3" placeholder="輸入新聞內容..." value={txt} onChange={e=>setTxt(e.target.value)}></textarea><div className="flex justify-end gap-2"><Button color="gray" onClick={onClose}>取消</Button><Button color="purple" onClick={()=>onSubmit(txt)}>發布</Button></div></div></div>; };
+
+        const AmountInputModal = ({ title, defaultVal, color, onClose, onSubmit }) => {
+            const [v, setV] = useState(defaultVal || "");
+            return <div className="custom-modal-overlay"><div className="custom-modal text-center">
+                <h3 className={`font-bold text-lg mb-4 ${color === 'red' ? 'text-red-700' : 'text-emerald-700'}`}>{title}</h3>
+                <input type="number" min="1" step="1" onKeyDown={blockNonInt} className="w-full p-2 border rounded mb-4" placeholder="輸入金額" value={v} onChange={e => setV(e.target.value)} />
+                <div className="flex justify-end gap-2"><Button color="gray" onClick={onClose}>取消</Button><Button color={color || "blue"} onClick={() => { if (Number(v) > 0) onSubmit(Number(v)); }}>確認</Button></div>
+            </div></div>;
+        };
+
+        const OrphanageModal = ({ studentName, children, onClose }) => (
+            <div className="custom-modal-overlay">
+                <div className="custom-modal text-center" style={{maxWidth: 500}}>
+                    <div className="text-6xl mb-2">😢👨‍👩‍👧‍👦</div>
+                    <h3 className="text-xl font-bold text-red-700 mb-2">家庭破碎</h3>
+                    <p className="text-sm text-slate-700 mb-3"><b>{studentName}</b> 宣告個人破產，無力撫養 {children} 名小孩...</p>
+                    <div className="bg-red-50 p-3 rounded border border-red-200 text-sm text-red-800 mb-4">
+                        <p>🏚️ 小孩們哭著被送往孤兒院</p>
+                        <p>「爸爸/媽媽，不要丟下我們...」</p>
+                    </div>
+                    <Button color="gray" onClick={onClose}>關閉</Button>
+                </div>
+            </div>
+        );
+
+        const HousingModal = ({ user, onClose, onConfirm }) => {
+            const currentOpt = HOUSING_OPTIONS[user.housing || "none"];
+            const isBought = currentOpt.type === 'buy';
+            const [sel, setSel] = useState(user.housing || "none");
+            const opt = HOUSING_OPTIONS[sel];
+            const canAfford = opt.type !== 'buy' || (user.personalBalance || 0) >= opt.down;
+            const sameAsCurrent = sel === (user.housing || "none");
+            return <div className="custom-modal-overlay"><div className="custom-modal-lg">
+                <h3 className="font-bold text-lg mb-3 text-blue-800">🏠 選擇住屋</h3>
+                <p className="text-xs text-slate-500 mb-1">目前個人存款：${(user.personalBalance || 0).toLocaleString()}</p>
+                <p className="text-xs text-slate-500 mb-3">目前住屋：<b>{currentOpt.label}</b></p>
+                {isBought && <div className="bg-amber-50 border border-amber-300 text-amber-800 text-xs p-2 rounded mb-3">⚠️ 您已購屋，房子無法輕易脫手，目前無法變更住屋選擇。</div>}
+                <div className="space-y-2 mb-4">
+                    {Object.values(HOUSING_OPTIONS).map(o => (
+                        <label key={o.key} className={`flex items-center gap-2 p-2 border rounded ${isBought ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} ${sel === o.key ? 'bg-blue-50 border-blue-400' : 'hover:bg-slate-50'}`}>
+                            <input type="radio" name="housing" disabled={isBought} checked={sel === o.key} onChange={() => setSel(o.key)} />
+                            <div className="flex-1 text-sm">
+                                <div className="font-bold">{o.label}</div>
+                                <div className="text-xs text-slate-500">
+                                    {o.type === 'rent' && `每月房租 $${o.monthly.toLocaleString()}`}
+                                    {o.type === 'buy' && `頭期款 $${o.down.toLocaleString()}，每月房貸 $${o.monthly.toLocaleString()}`}
+                                    {o.type === 'free' && `不需付房屋費用`}
+                                </div>
+                            </div>
+                        </label>
+                    ))}
+                </div>
+                {!canAfford && !isBought && <p className="text-xs text-red-600 mb-2">⚠️ 存款不足以支付頭期款</p>}
+                {opt.type === 'buy' && !isBought && !sameAsCurrent && <p className="text-xs text-amber-700 mb-2">⚠️ 注意：購屋後將無法再變更住屋選擇</p>}
+                <div className="flex justify-end gap-2">
+                    <Button color="gray" onClick={onClose}>取消</Button>
+                    <Button color="blue" disabled={!canAfford || isBought || sameAsCurrent} onClick={() => onConfirm(sel)}>確認</Button>
+                </div>
+            </div></div>;
+        };
+
+        const FamilyModal = ({ user, onClose, onConfirm }) => {
+            const locked = !!user.familyConfirmed;
+            const [fam, setFam] = useState(user.family || "single");
+            const [kids, setKids] = useState(user.children || 0);
+            const minKids = user.children || 0;
+            return <div className="custom-modal-overlay"><div className="custom-modal">
+                <h3 className="font-bold text-lg mb-3 text-pink-700">👨‍👩‍👧 家庭狀況</h3>
+                <p className="text-xs text-slate-500 mb-3">⚠️ 小孩數量按確認後不可減少（上限 {MAX_CHILDREN} 名）。{locked && " 您已確認過家庭狀況，只能增加小孩。"}</p>
+                <div className="space-y-2 mb-3">
+                    <label className="flex items-center gap-2"><input type="radio" disabled={locked && user.family === 'married' && (user.children || 0) > 0} checked={fam === 'single'} onChange={() => { setFam('single'); setKids(0); }} /> 單身 (基礎生活費 ${BASE_LIVING_SINGLE.toLocaleString()})</label>
+                    <label className="flex items-center gap-2"><input type="radio" checked={fam === 'married'} onChange={() => setFam('married')} /> 已婚 (基礎生活費 ${BASE_LIVING_MARRIED.toLocaleString()} + ${CHILD_COST.toLocaleString()}*小孩數)</label>
+                </div>
+                {fam === 'married' && (
+                    <div className="bg-pink-50 p-2 rounded mb-3 border border-pink-100">
+                        <label className="text-sm">小孩數量：</label>
+                        <select value={kids} onChange={e => setKids(Number(e.target.value))} className="w-20 p-1 border rounded ml-2">
+                            {Array.from({length: MAX_CHILDREN - minKids + 1}, (_, i) => minKids + i).map(n => (
+                                <option key={n} value={n}>{n}</option>
+                            ))}
+                        </select>
+                        <span className="text-xs text-slate-400 ml-1">（0 ~ {MAX_CHILDREN}，整數）</span>
+                        <div className="text-xs text-slate-500 mt-1">每月生活費試算：${(BASE_LIVING_MARRIED + CHILD_COST * kids).toLocaleString()}</div>
+                    </div>
+                )}
+                <div className="flex justify-end gap-2"><Button color="gray" onClick={onClose}>取消</Button><Button color="purple" onClick={() => onConfirm({ family: fam, children: fam === 'single' ? 0 : kids })}>確認</Button></div>
+            </div></div>;
+        };
+
+        const ResetPwdModal = ({ users, onClose, onSubmit }) => {
+            const [uid, setUid] = useState("");
+            const [pwd, setPwd] = useState("");
+            return <div className="custom-modal-overlay"><div className="custom-modal">
+                <h3 className="font-bold text-lg mb-3 text-amber-700">🔑 重置學生密碼</h3>
+                <select className="w-full p-2 border rounded mb-2" value={uid} onChange={e => setUid(e.target.value)}>
+                    <option value="">選擇學生...</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+                <input className="w-full p-2 border rounded mb-3" placeholder="新密碼" value={pwd} onChange={e => setPwd(e.target.value)} />
+                <div className="flex justify-end gap-2"><Button color="gray" onClick={onClose}>取消</Button><Button color="yellow" onClick={() => { if (uid && pwd) onSubmit(uid, pwd); }}>重置</Button></div>
+            </div></div>;
+        };
+
+        const NewsBanner = ({ text }) => {
+            const [visible, setVisible] = useState(true);
+            useEffect(() => { if (text) setVisible(true); }, [text]);
+            if (!text || !visible) return null;
+            return (
+                <div className="news-ticker">
+                    <div className="flex-1 text-center">📢 快訊：{text}</div>
+                    <button onClick={() => setVisible(false)} className="ml-4 text-white hover:bg-red-800 rounded px-2">✕</button>
+                </div>
+            );
+        };
+
+        const FinancialReportModal = ({ transactions, capital, onClose }) => {
+            const stats = useMemo(() => {
+                let income = 0, expense = 0;
+                transactions.forEach(t => { if (t.amount > 0) income += t.amount; else expense += Math.abs(t.amount); });
+                return { income, expense, profit: income - expense };
+            }, [transactions]);
+            return (
+                <div className="custom-modal-overlay"><div className="custom-modal-lg">
+                    <div className="flex justify-between items-center mb-4 border-b pb-2"><h3 className="text-xl font-bold text-emerald-800">📊 財務報表</h3><button onClick={onClose} className="text-gray-500 hover:text-gray-800">✕</button></div>
+                    <div className="grid grid-cols-3 gap-4 mb-6">
+                        <div className="bg-emerald-50 p-3 rounded border border-emerald-100 text-center"><div className="text-sm text-emerald-600 font-bold mb-1">總收入 (Income)</div><div className="text-xl font-bold text-emerald-700">${stats.income.toLocaleString()}</div></div>
+                        <div className="bg-red-50 p-3 rounded border border-red-100 text-center"><div className="text-sm text-red-600 font-bold mb-1">總支出 (Expense)</div><div className="text-xl font-bold text-red-700">${stats.expense.toLocaleString()}</div></div>
+                        <div className="bg-blue-50 p-3 rounded border border-blue-100 text-center"><div className="text-sm text-blue-600 font-bold mb-1">淨利 (Net Profit)</div><div className={`text-xl font-bold ${stats.profit >= 0 ? 'text-blue-700' : 'text-red-600'}`}>${stats.profit.toLocaleString()}</div></div>
+                    </div>
+                    <h4 className="font-bold text-sm text-slate-700 mb-2">近期交易明細</h4>
+                    <div className="overflow-x-auto"><table className="report-table"><thead><tr><th>時間</th><th>摘要</th><th>經手人</th><th>金額</th></tr></thead><tbody>{transactions.length === 0 ? (<tr><td colSpan="4" className="text-center text-gray-400">尚無交易紀錄</td></tr>) : (transactions.map((t, idx) => (<tr key={idx}><td>{t.time}</td><td>{t.desc}</td><td>{t.user}</td><td className={t.amount >= 0 ? "text-income" : "text-expense"}>{t.amount > 0 ? "+" : ""}{t.amount.toLocaleString()}</td></tr>)))}</tbody></table></div>
+                    <div className="mt-4 pt-2 border-t text-right text-xs text-gray-500">目前資產總額: ${capital.toLocaleString()}</div>
+                </div></div>
+            );
+        };
+
+        const ResumeModal = ({ user, comps, onClose }) => {
+            const jobs = user.jobHistory || [];
+            return <div className="custom-modal-overlay"><div className="custom-modal-lg">
+                <div className="flex justify-between items-center mb-3 border-b pb-2"><h3 className="text-xl font-bold text-indigo-800">📄 個人履歷表 — {user.name}</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
+                <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
+                    <div className="bg-slate-50 p-2 rounded"><b>家庭狀況：</b>{user.family === 'married' ? `已婚 (${user.children || 0} 名小孩)` : '單身'}</div>
+                    <div className="bg-slate-50 p-2 rounded"><b>住屋：</b>{HOUSING_OPTIONS[user.housing || "none"].label}</div>
+                    <div className="bg-slate-50 p-2 rounded"><b>個人存款：</b>${(user.personalBalance || 0).toLocaleString()}</div>
+                    <div className="bg-slate-50 p-2 rounded"><b>累計營業利潤：</b>${(user.cumulativeProfit || 0).toLocaleString()}</div>
+                </div>
+                <h4 className="font-bold text-sm text-slate-700 mb-2">工作經歷</h4>
+                <table className="report-table mb-2"><thead><tr><th>公司</th><th>職務</th><th>月薪</th><th>到職</th><th>離職</th><th>表現備註</th></tr></thead><tbody>
+                    {user.companyId && (<tr><td>{comps[user.companyId]?.name || '-'}</td><td>{user.role}</td><td>${(user.salary || 0).toLocaleString()}</td><td>{user.currentJoinDate || '-'}</td><td className="text-emerald-600">在職中</td><td>-</td></tr>)}
+                    {jobs.length === 0 && !user.companyId && <tr><td colSpan="6" className="text-center text-gray-400">尚無工作紀錄</td></tr>}
+                    {jobs.slice().reverse().map((j, i) => (<tr key={i}><td>{j.compName}</td><td>{j.role}</td><td>${(j.salary || 0).toLocaleString()}</td><td>{j.joinDate}</td><td>{j.leaveDate || '-'}</td><td>{j.note || '-'}</td></tr>))}
+                </tbody></table>
+            </div></div>;
+        };
+
+        const StudentHistoryModal = ({ users, comps, onClose }) => {
+            const [sortKey, setSortKey] = useState("name");
+            const sorted = [...users].sort((a, b) => {
+                if (sortKey === 'balance') return (b.personalBalance || 0) - (a.personalBalance || 0);
+                if (sortKey === 'salary') return (b.salary || 0) - (a.salary || 0);
+                return (a.name || "").localeCompare(b.name || "");
+            });
+            return <div className="custom-modal-overlay"><div className="custom-modal-lg" style={{maxWidth: 900}}>
+                <div className="flex justify-between items-center mb-3 border-b pb-2"><h3 className="text-xl font-bold text-indigo-800">📋 學生歷程記錄</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
+                <div className="mb-2 flex gap-2 text-xs"><span>排序：</span>
+                    <button onClick={() => setSortKey('name')} className={`px-2 py-1 rounded ${sortKey === 'name' ? 'bg-indigo-600 text-white' : 'bg-slate-200'}`}>姓名</button>
+                    <button onClick={() => setSortKey('balance')} className={`px-2 py-1 rounded ${sortKey === 'balance' ? 'bg-indigo-600 text-white' : 'bg-slate-200'}`}>存款</button>
+                    <button onClick={() => setSortKey('salary')} className={`px-2 py-1 rounded ${sortKey === 'salary' ? 'bg-indigo-600 text-white' : 'bg-slate-200'}`}>薪資</button>
+                </div>
+                <div className="overflow-x-auto">
+                <table className="report-table text-xs"><thead><tr>
+                    <th>姓名</th><th>公司</th><th>職務</th><th>月薪</th><th>存款</th><th>住屋</th><th>每月房</th><th>家庭</th><th>小孩</th><th>每月生活費</th><th>連續欠繳</th><th>狀態</th>
+                </tr></thead><tbody>
+                    {sorted.map(u => {
+                        const housing = HOUSING_OPTIONS[u.housing || "none"];
+                        const monthlyLiving = computeTotalLivingCost(u);
+                        const cannotAfford = (u.personalBalance || 0) < monthlyLiving;
+                        const isBank = u.isBankrupt;
+                        const cls = isBank ? 'bg-red-100' : (cannotAfford ? 'bg-amber-50' : '');
+                        return (<tr key={u.id} className={cls}>
+                            <td className="font-bold">{u.name}</td>
+                            <td>{u.companyId ? (comps[u.companyId]?.name || '-') : '無業'}</td>
+                            <td>{u.role || '-'}</td>
+                            <td>${(u.salary || 0).toLocaleString()}</td>
+                            <td className={cannotAfford ? 'text-red-700 font-bold' : ''}>${(u.personalBalance || 0).toLocaleString()}{cannotAfford && ' ⚠️'}</td>
+                            <td>{housing.label}</td>
+                            <td>${housing.monthly.toLocaleString()}</td>
+                            <td>{u.family === 'married' ? '已婚' : '單身'}</td>
+                            <td>{u.children || 0}</td>
+                            <td>${monthlyLiving.toLocaleString()}</td>
+                            <td className={(u.missedLivingCost || 0) >= 1 ? 'text-red-600 font-bold' : ''}>{u.missedLivingCost || 0} 次</td>
+                            <td>{isBank ? <span className="text-red-700 font-bold">💀 已破產</span> : (cannotAfford ? <span className="text-amber-700 font-bold">⚠️ 付不出</span> : '正常')}</td>
+                        </tr>);
+                    })}
+                </tbody></table>
+                </div>
+            </div></div>;
+        };
+
+        const computeSettlement = (users, comps) => {
+            const compArr = Object.values(comps);
+            const topEnterprises = compArr.filter(c => (c.capital || 0) >= 10000000).map(c => c.name);
+            const happyEnterprises = compArr.filter(c => (c.employees || []).length > 0 && (c.employees || []).every(e => (e.salary || 0) >= 50000)).map(c => c.name);
+            const topSalesUser = users.filter(u => u.role === '業務經理').sort((a, b) => (b.cumulativeProfit || 0) - (a.cumulativeProfit || 0))[0];
+            const compsByPerCapita = compArr.map(c => {
+                const emps = c.employees || [];
+                const revenue = (c.transactions || []).filter(t => t.amount > 0 && !/貸款/.test(t.desc || "")).reduce((s, t) => s + t.amount, 0);
+                return { c, perCapita: emps.length > 0 ? revenue / emps.length : 0, ceo: emps.find(e => e.role === 'CEO') };
+            }).sort((a, b) => b.perCapita - a.perCapita);
+            const bestCEO = compsByPerCapita.find(x => x.ceo);
+            const compsByCapital = [...compArr].sort((a, b) => (b.capital || 0) - (a.capital || 0));
+            const richest = compsByCapital[0];
+            const bestCFO = richest ? (richest.employees || []).find(e => e.role === '財務長') : null;
+            const noFineComps = compArr.filter(c => !(c.transactions || []).some(t => /罰款/.test(t.desc || "")));
+            const noFineHRs = noFineComps.flatMap(c => (c.employees || []).filter(e => e.role === '人資經理').map(e => ({ ...e, compName: c.name })));
+            const compsByTechAndOutput = compArr.map(c => {
+                const tech = c.techLevel || 1;
+                const recipes = RECIPES[c.id] || {};
+                const topProduct = recipes[tech]?.name;
+                let topOutput = 0;
+                if (topProduct) {
+                    // 只 sum「生產(成本): {topProduct} x{n}」格式中精確匹配 topProduct 的數量
+                    (c.transactions || []).forEach(t => {
+                        const m = (t.desc || "").match(/^生產(?:成本)?:\s*(.+?)\s*x(\d+)/);
+                        if (m && m[1] === topProduct) topOutput += Number(m[2]);
+                    });
+                }
+                return { c, tech, topProduct, topOutput, rnd: (c.employees || []).find(e => e.role === '研發經理') };
+            });
+            const maxTech = Math.max(...compsByTechAndOutput.map(x => x.tech), 1);
+            const bestRnD = compsByTechAndOutput.filter(x => x.tech === maxTech && !x.c.type.includes('下游')).sort((a, b) => b.topOutput - a.topOutput)[0];
+            const downstream = compArr.filter(c => c.type.includes('下游'));
+            const proc = downstream.map(c => {
+                // 真正的「平均單價」：sum(總成本) / sum(總數量)
+                // 下游進貨有兩種 desc：「採購到貨: ...」與「報價: ... (採購核准)」
+                let totalCost = 0, totalQty = 0;
+                (c.transactions || []).forEach(t => {
+                    if (t.amount < 0 && /^(採購|報價)/.test(t.desc || "")) {
+                        const m = (t.desc || "").match(/x(\d+)/);
+                        if (m) { totalCost += Math.abs(t.amount); totalQty += Number(m[1]); }
+                    }
+                });
+                const avgCost = totalQty > 0 ? totalCost / totalQty : Infinity;
+                return { c, avgCost, proc: (c.employees || []).find(e => e.role === '採購經理') };
+            }).filter(x => x.avgCost !== Infinity && x.proc).sort((a, b) => a.avgCost - b.avgCost);
+            const bestProc = proc[0];
+            return { topEnterprises, happyEnterprises, topSalesUser, bestCEO, bestCFO, richest, noFineHRs, bestRnD, bestProc };
+        };
+
+        const SettlementModal = ({ users, comps, onClose }) => {
+            const s = useMemo(() => computeSettlement(users, comps), [users, comps]);
+            const Award = ({ title, content, color }) => (
+                <div className={`p-3 rounded border-l-4 mb-3 ${color}`}>
+                    <div className="font-bold text-sm mb-1">{title}</div>
+                    <div className="text-sm">{content}</div>
+                </div>
+            );
+            return <div className="custom-modal-overlay"><div className="custom-modal-lg">
+                <div className="flex justify-between items-center mb-3 border-b pb-2"><h3 className="text-xl font-bold text-amber-700">🏆 學期結算 / 頒獎</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
+                <Award title="🏢 頂尖企業 (資本額 ≥ 1000萬)" color="bg-amber-50 border-amber-500" content={s.topEnterprises.length ? s.topEnterprises.join('、') : '無'} />
+                <Award title="😊 幸福企業 (全員薪資 ≥ 5萬)" color="bg-pink-50 border-pink-500" content={s.happyEnterprises.length ? s.happyEnterprises.join('、') : '無'} />
+                <Award title="🥇 Top Sales (累計利潤最高之業務經理)" color="bg-blue-50 border-blue-500" content={s.topSalesUser ? `${s.topSalesUser.name} (累計利潤 $${(s.topSalesUser.cumulativeProfit || 0).toLocaleString()})` : '無'} />
+                <Award title="👔 傑出 CEO (人均產值最高公司之 CEO)" color="bg-red-50 border-red-500" content={s.bestCEO?.ceo ? `${s.bestCEO.ceo.name} (${s.bestCEO.c.name}，人均產值 $${Math.round(s.bestCEO.perCapita).toLocaleString()})` : '無'} />
+                <Award title="💰 傑出財務長 (資本額最高公司之 CFO)" color="bg-emerald-50 border-emerald-500" content={s.bestCFO ? `${s.bestCFO.name} (${s.richest.name}，資本額 $${(s.richest.capital || 0).toLocaleString()})` : '無'} />
+                <Award title="🧡 傑出人資長 (無罰款公司之人資)" color="bg-orange-50 border-orange-500" content={s.noFineHRs.length ? s.noFineHRs.map(h => `${h.name} (${h.compName})`).join('、') : '無'} />
+                <Award title="🔬 傑出研發長 (技術升級最高且生產最多最高級產品)" color="bg-purple-50 border-purple-500" content={s.bestRnD?.rnd ? `${s.bestRnD.rnd.name} (${s.bestRnD.c.name}，Lv${s.bestRnD.tech}，產出 ${s.bestRnD.topOutput} 次)` : '無'} />
+                <Award title="📦 傑出採購長 (下游最能壓低成本)" color="bg-indigo-50 border-indigo-500" content={s.bestProc?.proc ? `${s.bestProc.proc.name} (${s.bestProc.c.name}，平均進貨 $${Math.round(s.bestProc.avgCost).toLocaleString()})` : '無'} />
+            </div></div>;
+        };
+
+        // 稅務結算預覽 Modal — mode='vat' 月結營業稅 / mode='income' 期末營所稅
+        const TaxSettleModal = ({ mode, comps, onClose, onConfirm }) => {
+            const isVat = mode === 'vat';
+            const rows = useMemo(() => Object.values(comps).map(c => {
+                if (isVat) {
+                    const p = computeCompanyVatPreview(c);
+                    return { c, ...p };
+                } else {
+                    const p = computeCompanyIncomeTaxPreview(c);
+                    return { c, ...p, alreadySettled: !!c.yearEndTaxSettled };
+                }
+            }), [comps, isVat]);
+            const totalTax = rows.reduce((s, r) => s + (r.alreadySettled ? 0 : (r.tax || 0)), 0);
+            const taxableCount = rows.filter(r => !r.alreadySettled && r.tax > 0).length;
+            return <div className="custom-modal-overlay"><div className="custom-modal-lg">
+                <div className="flex justify-between items-center mb-3 border-b pb-2">
+                    <h3 className={`text-xl font-bold ${isVat ? 'text-blue-800' : 'text-amber-800'}`}>{isVat ? '📅 月結營業稅 (5%)' : '📆 期末營所稅 (20%)'}</h3>
+                    <button onClick={onClose} className="text-gray-500 hover:text-gray-800">✕</button>
+                </div>
+                <div className="text-xs text-slate-500 mb-3">
+                    {isVat ? '銷售營收 × 5%（自上次結算後的新增銷售額）' : '淨利（銷售收入 − 營業支出）× 20%，虧損公司不扣稅'}
+                </div>
+                <div className="overflow-x-auto mb-3">
+                    <table className="report-table">
+                        <thead><tr>
+                            <th>公司</th>
+                            {isVat ? <th>累計銷售</th> : <th>銷售收入</th>}
+                            {isVat ? <th>已結稅基</th> : <th>營業支出</th>}
+                            {isVat ? <th>應稅銷售額</th> : <th>淨利</th>}
+                            <th>應扣稅額</th>
+                            <th>狀態</th>
+                        </tr></thead>
+                        <tbody>
+                            {rows.map(r => (
+                                <tr key={r.c.id}>
+                                    <td className="font-bold">{r.c.name}</td>
+                                    {isVat ? <td>${(r.totalSales || 0).toLocaleString()}</td> : <td>${(r.revenue || 0).toLocaleString()}</td>}
+                                    {isVat ? <td>${(r.already || 0).toLocaleString()}</td> : <td>${(r.expense || 0).toLocaleString()}</td>}
+                                    {isVat ? <td>${(r.taxableBase || 0).toLocaleString()}</td> : <td className={r.profit < 0 ? 'text-red-600' : ''}>${(r.profit || 0).toLocaleString()}</td>}
+                                    <td className="font-bold text-red-700">${(r.tax || 0).toLocaleString()}</td>
+                                    <td>{r.alreadySettled ? <span className="text-amber-700">已結算 (跳過)</span> : (r.tax > 0 ? '✅ 將扣稅' : '無稅')}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                <div className="bg-slate-50 p-3 rounded mb-3 text-sm">
+                    <b>合計：</b>本次將對 <b className="text-red-700">{taxableCount}</b> 家公司共扣稅 <b className="text-red-700">${totalTax.toLocaleString()}</b>
+                </div>
+                <div className="flex justify-end gap-2">
+                    <Button color="gray" onClick={onClose}>取消</Button>
+                    <Button color={isVat ? "blue" : "yellow"} onClick={onConfirm}>確認扣稅</Button>
+                </div>
+            </div></div>;
+        };
+
+        const CompanyChartsModal = ({ company, onClose, scope }) => {
+            const c = company;
+            const txs = c.transactions || [];
+            const reversed = [...txs].reverse();
+            const lineData = reversed.map((t, i) => ({ label: t.time?.split(' ')[1] || `${i + 1}`, value: t.amount }));
+            const incomeData = reversed.filter(t => t.amount > 0).map(t => ({ label: t.time?.split(' ')[1] || '', value: t.amount }));
+            const expenseData = reversed.filter(t => t.amount < 0).map(t => ({ label: t.time?.split(' ')[1] || '', value: Math.abs(t.amount) }));
+            const productionByName = {};
+            txs.forEach(t => {
+                const m = (t.desc || "").match(/^生產(?:成本)?:\s*(.+?)\s*x(\d+)/);
+                if (m) productionByName[m[1]] = (productionByName[m[1]] || 0) + Number(m[2]);
+            });
+            const prodData = Object.entries(productionByName).map(([k, v]) => ({ label: k, value: v }));
+            const salesItems = txs.filter(t => t.amount > 0 && /(出貨|政府採購|報價單成交)/.test(t.desc || ""));
+            const salesData = salesItems.slice(0, 15).reverse().map((t, i) => ({ label: `#${i + 1}`, value: t.amount }));
+            const purchaseItems = txs.filter(t => t.amount < 0 && /(採購|進口|買)/.test(t.desc || ""));
+            const purchaseData = purchaseItems.slice(0, 15).reverse().map((t, i) => ({ label: `#${i + 1}`, value: Math.abs(t.amount) }));
+            const empCount = (c.employees || []).length;
+            const totalRevenue = txs.filter(t => t.amount > 0 && !/貸款/.test(t.desc || "")).reduce((s, t) => s + t.amount, 0);
+            const perCapita = empCount > 0 ? totalRevenue / empCount : 0;
+
+            const Section = ({ title, children, when = true }) => when ? <div className="mb-4"><h4 className="font-bold text-sm text-slate-700 mb-2 border-b pb-1">{title}</h4>{children}</div> : null;
+
+            const showFinance = !scope || scope === 'all' || scope === 'finance';
+            const showProd = !scope || scope === 'all' || scope === 'rnd';
+            const showSales = !scope || scope === 'all' || scope === 'sales';
+            const showHR = !scope || scope === 'all' || scope === 'hr';
+            const showProc = !scope || scope === 'all' || scope === 'procure';
+
+            return <div className="custom-modal-overlay"><div className="custom-modal-lg">
+                <div className="flex justify-between items-center mb-3 border-b pb-2"><h3 className="text-xl font-bold text-blue-800">📈 數據圖表 — {c.name}</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
+                <Section title="💰 財務：收入 vs 支出 (折線圖)" when={showFinance}>
+                    <LineChartSVG data={lineData} label="交易金額（含正負）" color="#2563eb" />
+                    <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
+                        <div className="bg-emerald-50 p-2 rounded">收入筆數：{incomeData.length}</div>
+                        <div className="bg-red-50 p-2 rounded">支出筆數：{expenseData.length}</div>
+                    </div>
+                </Section>
+                <Section title="🔬 研發：產量與等級" when={showProd}>
+                    <div className="text-xs mb-1">目前技術等級：Lv{c.techLevel || 1}</div>
+                    <BarChartSVG data={prodData} label="各產品累計生產數量" color="#7c3aed" />
+                </Section>
+                <Section title="💵 業務：銷售額/利潤/成本" when={showSales}>
+                    <BarChartSVG data={salesData} label="銷售單筆金額 (近期)" color="#0ea5e9" />
+                    <div className="text-xs text-slate-500 mt-1">總銷售收入：${salesItems.reduce((s, t) => s + t.amount, 0).toLocaleString()}</div>
+                </Section>
+                <Section title="👥 人資：人均產值 (含公式)" when={showHR}>
+                    <div className="bg-amber-50 p-3 rounded text-sm">
+                        <div>員工人數：<b>{empCount}</b> 人</div>
+                        <div>累計營業收入：<b>${totalRevenue.toLocaleString()}</b></div>
+                        <div className="mt-2 p-2 bg-white border border-amber-200 rounded text-xs">
+                            <b>公式：</b> 人均產值 = 累計營業收入 ÷ 員工人數<br />
+                            = ${totalRevenue.toLocaleString()} ÷ {empCount} = <span className="font-bold text-amber-700">${Math.round(perCapita).toLocaleString()}</span>
+                        </div>
+                    </div>
+                </Section>
+                <Section title="📦 採購：進貨成本" when={showProc}>
+                    <BarChartSVG data={purchaseData} label="進貨單筆金額 (近期)" color="#dc2626" />
+                    <div className="text-xs text-slate-500 mt-1">累計進貨支出：${purchaseItems.reduce((s, t) => s + Math.abs(t.amount), 0).toLocaleString()}</div>
+                </Section>
+            </div></div>;
+        };
+
+        const TeacherChartsPicker = ({ comps, onClose, onPick }) => {
+            return <div className="custom-modal-overlay"><div className="custom-modal">
+                <div className="flex justify-between items-center mb-3"><h3 className="font-bold text-lg text-blue-800">📊 選擇要查看的公司</h3><button onClick={onClose} className="text-gray-500">✕</button></div>
+                <div className="grid grid-cols-2 gap-2">
+                    {Object.values(comps).map(c => (<Button key={c.id} color="blue" className="text-sm" onClick={() => onPick(c)}>{c.name}</Button>))}
+                </div>
+            </div></div>;
+        };
+
+        const B2BShop = ({ myCompId, allComps, onBuy, notify }) => {
+            const [vendorId, setVendorId] = useState("");
+            const [selectedItemName, setSelectedItemName] = useState("");
+            const [price, setPrice] = useState("");
+            const [qty, setQty] = useState("");
+            const vendor = allComps[vendorId];
+            const vendorAggInv = vendor ? getAggregatedInventory(vendor.inventory) : [];
+            return (
+                <div className="bg-slate-50 p-3 rounded">
+                    <h4 className="font-bold text-sm mb-2 text-blue-800">🤝 B2B 採購 (向同學進貨)</h4>
+                    <div className="space-y-2">
+                        <select className="w-full p-2 border rounded text-xs" value={vendorId} onChange={e=>{setVendorId(e.target.value); setSelectedItemName("");}}>
+                            <option value="">選擇供應商</option>
+                            {Object.values(allComps).filter(c=>c.id!==myCompId).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                        {vendor && (
+                            <select className="w-full p-2 border rounded text-xs" value={selectedItemName} onChange={e=>setSelectedItemName(e.target.value)}>
+                                <option value="">選擇商品...</option>
+                                {vendorAggInv.length === 0 ? <option disabled>(無庫存)</option> :
+                                    vendorAggInv.map((item, idx) => (
+                                        <option key={idx} value={item.name}>{item.name} (總庫存: {item.quantity})</option>
+                                    ))
+                                }
+                            </select>
+                        )}
+                        <div className="flex gap-2"><input type="number" min="1" step="1" onKeyDown={blockNonInt} placeholder="議價單價" className="w-1/2 p-2 border rounded text-xs" value={price} onChange={e=>setPrice(e.target.value)} /><input type="number" min="1" step="1" onKeyDown={blockNonInt} placeholder="數量" className="w-1/2 p-2 border rounded text-xs" value={qty} onChange={e=>setQty(e.target.value)} /></div>
+                        <Button className="w-full py-1 text-xs" onClick={async ()=>{
+                            if(!vendorId || !selectedItemName || !price || !qty) return notify("請填寫完整");
+                            await onBuy('req_b2b_buy', { sellerId: vendor.id, vendorName: vendor.name, item: selectedItemName, price: Number(price), qty: Number(qty) });
+                        }}>送出採購單 (買方發起)</Button>
+                    </div>
+                </div>
+            );
+        };
+
+        // 虛擬上游採購 — 只有買方財務需審核，無賣方審核
+        const VirtualVendorShop = ({ onBuy, notify }) => {
+            const allQuotes = useMemo(() => flattenVirtualQuotes(), []);
+            const [selectedIdx, setSelectedIdx] = useState("");
+            const [qty, setQty] = useState("");
+            const [nonce, setNonce] = useState(0);
+            // 每次重新整理 / 切換選項時，重新生成所有浮動報價
+            const liveQuotes = useMemo(() => allQuotes.map(q => ({ ...q, price: fluctuatePrice(q.basePrice) })), [allQuotes, nonce]);
+            const sel = selectedIdx !== "" ? liveQuotes[Number(selectedIdx)] : null;
+            return (
+                <div className="bg-amber-50 p-3 rounded border border-amber-200">
+                    <div className="flex justify-between items-center mb-2">
+                        <h4 className="font-bold text-sm text-amber-800">🏬 向虛擬上游採購 (價格浮動 ±5%)</h4>
+                        <button onClick={()=>setNonce(n=>n+1)} className="text-xs px-2 py-0.5 bg-amber-200 hover:bg-amber-300 rounded">🔄 重新報價</button>
+                    </div>
+                    <div className="space-y-2">
+                        <select className="w-full p-2 border rounded text-xs" value={selectedIdx} onChange={e=>setSelectedIdx(e.target.value)}>
+                            <option value="">選擇虛擬供應商與商品...</option>
+                            {liveQuotes.map((q, idx) => (
+                                <option key={idx} value={idx}>{q.vendorName} — {q.item} ＠ ${q.price.toLocaleString()}/單</option>
+                            ))}
+                        </select>
+                        {sel && (
+                            <div className="text-xs bg-white border border-amber-200 p-2 rounded">
+                                <div>選定：<b>{sel.vendorName}</b> 的 <b>{sel.item}</b></div>
+                                <div>當下報價：<b className="text-amber-700">${sel.price.toLocaleString()}</b> / 單 (基準 ${sel.basePrice.toLocaleString()})</div>
+                            </div>
+                        )}
+                        <input type="number" min="1" step="1" onKeyDown={blockNonInt} placeholder="採購數量" className="w-full p-2 border rounded text-xs" value={qty} onChange={e=>setQty(e.target.value)} />
+                        <Button color="yellow" className="w-full py-1 text-xs" onClick={async ()=>{
+                            if(!sel || !qty) return notify("請選擇供應商與商品並輸入數量");
+                            const q = Number(qty);
+                            if(!q || q <= 0) return notify("數量必須為正整數");
+                            await onBuy('req_virtual_buy', { vendorName: sel.vendorName, item: sel.item, price: sel.price, qty: q });
+                            setQty(""); setSelectedIdx(""); setNonce(n=>n+1);
+                        }}>送出採購單 (財務審核後直接到貨)</Button>
+                    </div>
+                </div>
+            );
+        };
+
+        const SellerQuoteModal = ({ item, allComps, myCompId, onClose, onConfirm }) => {
+            const [targetId, setTargetId] = useState("");
+            const [price, setPrice] = useState("");
+            const [qty, setQty] = useState("");
+            return (
+                <div className="custom-modal-overlay"><div className="custom-modal text-center">
+                    <h3 className="text-lg font-bold mb-2 text-blue-800">B2B 報價單: {item.name}</h3>
+                    <p className="text-xs text-slate-500 mb-4">總庫存: {item.quantity} | 平均成本: ${Math.round(item.avgCost)}</p>
+                    <div className="space-y-2 mb-4">
+                        <select className="w-full p-2 border rounded" value={targetId} onChange={e=>setTargetId(e.target.value)}>
+                            <option value="">選擇買家...</option>
+                            {Object.values(allComps).filter(c=>c.id!==myCompId).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                        <input placeholder="單價" type="number" min="1" step="1" onKeyDown={blockNonInt} className="w-full p-2 border rounded" value={price} onChange={e=>setPrice(e.target.value)} />
+                        <input placeholder="數量" type="number" min="1" step="1" onKeyDown={blockNonInt} className="w-full p-2 border rounded" value={qty} onChange={e=>setQty(e.target.value)} />
+                    </div>
+                    <div className="flex justify-end gap-2"><Button color="gray" onClick={onClose}>取消</Button><Button onClick={async ()=>{if(targetId&&price&&qty) await onConfirm({itemName: item.name, targetId, price:Number(price), qty:Number(qty)});}}>送出報價</Button></div>
+                </div></div>
+            );
+        };
+
+        function useSystem() {
+            const [db, setDb] = useState(null);
+            const [mode, setMode] = useState("connecting");
+            const [cls, setCls] = useState(() => localStorage.getItem('CE_CLS') || null);
+            const [tPwd, setTPwd] = useState(DEFAULT_TEACHER_PWD);
+            const [globalNews, setGlobalNews] = useState("");
+
+            useEffect(() => {
+                const init = async () => {
+                    if(!window.firebaseModules) return;
+                    try {
+                        const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, doc, getDoc, onSnapshot } = window.firebaseModules;
+                        if (!window.firebaseApp) { window.firebaseApp = initializeApp(MY_CONFIG); }
+                        await signInAnonymously(getAuth());
+                        onAuthStateChanged(getAuth(), async (u) => {
+                            if(u) {
+                                const fDb = getFirestore();
+                                setDb(fDb); setMode("online");
+                                try {
+                                    const sRef = doc(fDb, 'artifacts', DB_VERSION, 'settings', 'teacher');
+                                    onSnapshot(sRef, (snap) => {
+                                        if (snap.exists()) {
+                                            const d = snap.data();
+                                            if (d.password) setTPwd(d.password);
+                                            setGlobalNews(d.news || "");
+                                        }
+                                    });
+                                } catch(e){}
+                            }
+                        });
+                    } catch(e) { setMode("error"); console.error(e); }
+                };
+                let elapsed = 0;
+                const t = setInterval(() => { elapsed += 100; if(window.firebaseModules) { clearInterval(t); init(); } else if(elapsed > 10000) { clearInterval(t); setMode("error"); console.error("Firebase SDK 載入逾時"); } }, 100);
+                return () => clearInterval(t);
+            }, []);
+
+            useEffect(() => { if(cls) localStorage.setItem('CE_CLS', cls); else localStorage.removeItem('CE_CLS'); }, [cls]);
+            return { db, mode, cls, setCls, tPwd, setTPwd, globalNews };
+        }
+
+        function App() {
+            const { db, mode, cls, setCls, tPwd, setTPwd, globalNews } = useSystem();
+            const [view, setView] = useState("loading");
+            const [user, setUser] = useState(null);
+            const [comps, setComps] = useState({});
+            const [demands, setDemands] = useState([]);
+            const [msg, setMsg] = useState(null);
+            const [showPwdModal, setShowPwdModal] = useState(false);
+            const [showResetConfirm, setShowResetConfirm] = useState(false);
+            const [showLivingCostConfirm, setShowLivingCostConfirm] = useState(false);
+            const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+            const [showNewsModal, setShowNewsModal] = useState(false);
+            const [quoteItem, setQuoteItem] = useState(null);
+            const [showReport, setShowReport] = useState(false);
+            const [allUsers, setAllUsers] = useState([]);
+            const [showHistory, setShowHistory] = useState(false);
+            const [showSettlement, setShowSettlement] = useState(false);
+            const [showResetPwd, setShowResetPwd] = useState(false);
+            const [showHousing, setShowHousing] = useState(false);
+            const [showFamily, setShowFamily] = useState(false);
+            const [showResume, setShowResume] = useState(false);
+            const [showCharts, setShowCharts] = useState(null);
+            const [showTeacherCharts, setShowTeacherCharts] = useState(false);
+            const [fineModal, setFineModal] = useState(null);
+            const [bonusModal, setBonusModal] = useState(null);
+            const [orphanQueue, setOrphanQueue] = useState([]);
+            const [taxModal, setTaxModal] = useState(null); // 'vat' | 'income' | null
+            const [showResetTaxConfirm, setShowResetTaxConfirm] = useState(false);
+
+            const ALL_PRODUCTS = useMemo(() => {
+                const products = new Set();
+                Object.values(RECIPES).forEach(companyRecipes => {
+                    Object.values(companyRecipes).forEach(recipe => { products.add(recipe.name); });
+                });
+                return Array.from(products).sort();
+            }, []);
+
+            useEffect(() => {
+                if(mode === 'online') {
+                    const savedIsTeacher = localStorage.getItem('CE_IS_TEACHER');
+                    const savedUid = localStorage.getItem('CE_UID');
+                    if (cls) {
+                        if(savedIsTeacher === 'true') { setView('teacher'); }
+                        else if(savedUid) {
+                            const { doc, getDoc } = window.firebaseModules;
+                            getDoc(doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'users', savedUid)).then(snap => {
+                                if(snap.exists()) {
+                                    setUser(snap.data());
+                                    const lastView = localStorage.getItem('CE_LAST_VIEW');
+                                    if(snap.data().companyId && lastView === 'company') setView('company'); else setView('personal');
+                                } else { localStorage.removeItem('CE_UID'); setView('login'); }
+                            }).catch(e => { console.error("恢復身分失敗:", e); localStorage.removeItem('CE_UID'); setView('login'); });
+                        } else { setView('login'); }
+                    } else { setView('class_select'); }
+                }
+            }, [mode, cls, db]);
+
+            useEffect(() => { if(view === 'company' || view === 'personal') localStorage.setItem('CE_LAST_VIEW', view); }, [view]);
+
+            useEffect(() => {
+                if(mode!=='online' || !db || !cls) return;
+                const { collection, onSnapshot, doc, query, orderBy } = window.firebaseModules;
+                const unsubC = onSnapshot(collection(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies'), snap => {
+                    const d={}; snap.forEach(docSnap=>d[docSnap.id]=docSnap.data()); setComps(d);
+                });
+                const unsubD = onSnapshot(query(collection(db, 'artifacts', DB_VERSION, 'classes', cls, 'demands'), orderBy('time', 'desc')), snap => {
+                    setDemands(snap.docs.map(d=>({id:d.id, ...d.data()})));
+                });
+                const unsubAll = onSnapshot(collection(db, 'artifacts', DB_VERSION, 'classes', cls, 'users'), snap => {
+                    setAllUsers(snap.docs.map(d => ({ ...d.data() })));
+                });
+                let unsubU = () => {};
+                if(user) {
+                    unsubU = onSnapshot(doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'users', user.id), snap => {
+                        if(snap.exists()) setUser(snap.data());
+                    });
+                }
+                return () => { unsubC(); unsubD(); unsubU(); unsubAll(); };
+            }, [mode, db, cls, user?.id]);
+
+            const notify = (t) => { setMsg(t); setTimeout(()=>setMsg(null), 3000); };
+            const doLogout = () => { localStorage.removeItem('CE_UID'); localStorage.removeItem('CE_IS_TEACHER'); localStorage.removeItem('CE_LAST_VIEW'); localStorage.removeItem('CE_CLS'); setCls(null); setUser(null); setView('class_select'); };
+            const handleChangePassword = async (newPwd) => { if(!newPwd || newPwd.length < 1) return notify("密碼不能為空"); try { const { doc, updateDoc, setDoc } = window.firebaseModules; if (view === 'teacher') { await setDoc(doc(db, 'artifacts', DB_VERSION, 'settings', 'teacher'), { password: newPwd }, {merge:true}); setTPwd(newPwd); notify("老師密碼已更新"); } else if (user) { await updateDoc(doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'users', user.id), { password: newPwd }); notify("個人密碼已更新"); } setShowPwdModal(false); } catch(e) { notify("修改失敗"); } };
+            const updateNews = async (txt) => { if(!txt) return notify("請輸入內容"); const { doc, setDoc } = window.firebaseModules; await setDoc(doc(db, 'artifacts', DB_VERSION, 'settings', 'teacher'), { news: txt }, {merge: true}); notify("新聞已發布"); setShowNewsModal(false); };
+
+            const handleInitConfirm = async () => {
+                setShowResetConfirm(false);
+                try {
+                    const { doc, writeBatch, collection, getDocs } = window.firebaseModules;
+                    notify("⏳ 系統重置中...");
+                    const ops = [];
+                    COMPANIES_DEF.forEach(c => {
+                        ops.push({ type: 'set', ref: doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies', c.id), data: { id: c.id, name: c.name, type: c.type, capital: INITIAL_CAPITAL, inventory: [], requests: [], transactions: [], employees: [], bonusRatio: 0, loan: 0, isBankrupt: false, techLevel: 1, vatBaseSettled: 0, yearEndTaxSettled: false, lastUpdate: new Date().toLocaleString('zh-TW') } });
+                    });
+                    const usersRef = collection(db, 'artifacts', DB_VERSION, 'classes', cls, 'users');
+                    const userSnap = await getDocs(usersRef);
+                    userSnap.forEach(u => { ops.push({ type: 'delete', ref: u.ref }); });
+                    /* user defaults at registration include: orphanagePending: false */
+                    const demandsRef = collection(db, 'artifacts', DB_VERSION, 'classes', cls, 'demands');
+                    const demandSnap = await getDocs(demandsRef);
+                    demandSnap.forEach(d => { ops.push({ type: 'delete', ref: d.ref }); });
+                    const BATCH_LIMIT = 450;
+                    for (let i = 0; i < ops.length; i += BATCH_LIMIT) {
+                        const batch = writeBatch(db);
+                        ops.slice(i, i + BATCH_LIMIT).forEach(op => {
+                            if (op.type === 'set') batch.set(op.ref, op.data);
+                            else if (op.type === 'update') batch.update(op.ref, op.data);
+                            else if (op.type === 'delete') batch.delete(op.ref);
+                        });
+                        await batch.commit();
+                    }
+                    notify("✅ 系統已重置");
+                } catch(e) { notify("❌ 重置失敗: " + e.message); }
+            };
+
+            const chargeLivingCostConfirm = async () => {
+                setShowLivingCostConfirm(false);
+                try {
+                    const { collection, getDocs, updateDoc, doc } = window.firebaseModules;
+                    const usersRef = collection(db, 'artifacts', DB_VERSION, 'classes', cls, 'users');
+                    const snap = await getDocs(usersRef);
+                    notify("⏳ 執行扣款中...");
+                    const orphanList = [];
+                    const bankruptList = [];
+                    const failList = [];
+                    await Promise.all(snap.docs.map(async (u) => {
+                        const d = u.data();
+                        if (d.isBankrupt) return;
+                        const cost = computeTotalLivingCost(d);
+                        const bal = d.personalBalance || 0;
+                        const canPay = bal >= cost;
+                        const updates = {};
+                        if (canPay) {
+                            updates.personalBalance = bal - cost;
+                            updates.missedLivingCost = 0;
+                        } else {
+                            updates.personalBalance = bal - cost;
+                            updates.missedLivingCost = (d.missedLivingCost || 0) + 1;
+                            failList.push(d.name);
+                            if (updates.missedLivingCost >= 2) {
+                                updates.isBankrupt = true;
+                                bankruptList.push(d.name);
+                                if (d.family === 'married' && (d.children || 0) > 0) {
+                                    orphanList.push({ name: d.name, children: d.children });
+                                    updates.orphanagePending = true;
+                                }
+                            }
+                        }
+                        await updateDoc(doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'users', u.id), updates);
+                    }));
+                    let msg = `📉 已扣 ${snap.size} 人生活費。`;
+                    if (failList.length) msg += `付不出：${failList.join('、')}。`;
+                    if (bankruptList.length) msg += `💀 破產：${bankruptList.join('、')}。`;
+                    notify(msg);
+                    if (orphanList.length > 0) {
+                        setOrphanQueue(orphanList);
+                    }
+                } catch(e) { notify("扣款失敗"); console.error(e); }
+            };
+
+            const handleLogin = async (name, pwd) => {
+                const { doc, getDoc, setDoc } = window.firebaseModules;
+                const uid = `${cls}-${name}`;
+                const ref = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'users', uid);
+                const snap = await getDoc(ref);
+                if (snap.exists()) {
+                    if (snap.data().password === pwd) { setUser(snap.data()); localStorage.setItem('CE_UID', uid); setView("personal"); enterFullscreen(); } else notify("❌ 密碼錯誤");
+                } else {
+                    const newUser = { id: uid, name, password: pwd, personalBalance: INITIAL_PERSONAL, role: "無業", companyId: null, salary: 0, pendingBonus: 0, housing: "none", family: "single", children: 0, familyConfirmed: false, missedLivingCost: 0, isBankrupt: false, jobHistory: [], cumulativeProfit: 0, currentJoinDate: null, orphanagePending: false };
+                    await setDoc(ref, newUser); setUser(newUser); localStorage.setItem('CE_UID', uid); setView("personal"); enterFullscreen();
+                }
+            };
+
+            const handleTeacherLogin = () => { if (document.getElementById('tPwd').value === tPwd) { localStorage.setItem('CE_IS_TEACHER', 'true'); setView('teacher'); enterFullscreen(); } else { notify("密碼錯誤"); } };
+
+            const safeRemoveRequest = async (compRef, reqId) => {
+                const { runTransaction } = window.firebaseModules;
+                try {
+                    await runTransaction(db, async (t) => {
+                        const snap = await t.get(compRef);
+                        if(snap.exists()) {
+                            const currentReqs = snap.data().requests || [];
+                            const newReqs = currentReqs.filter(r => r.id !== reqId);
+                            t.update(compRef, { requests: newReqs });
+                        }
+                    });
+                } catch (e) { console.error("移除單據失敗:", e); }
+            };
+
+            const handleLeave = async () => {
+                setShowLeaveConfirm(false);
+                if(!user.companyId) return;
+                const { doc } = window.firebaseModules;
+                const compRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies', user.companyId);
+                const userRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'users', user.id);
+                try {
+                    const { runTransaction } = window.firebaseModules;
+                    await runTransaction(db, async (t) => {
+                        const cSnap = await t.get(compRef);
+                        const uSnap = await t.get(userRef);
+                        if(!cSnap.exists()) throw new Error("公司不存在");
+                        const uData = uSnap.data();
+                        const newEmps = (cSnap.data().employees || []).filter(e => e.id !== user.id);
+                        const hist = [...(uData.jobHistory || []), { compId: user.companyId, compName: cSnap.data().name, role: uData.role, salary: uData.salary || 0, joinDate: uData.currentJoinDate || '-', leaveDate: new Date().toLocaleDateString('zh-TW'), note: '主動離職' }];
+                        t.update(compRef, { employees: newEmps });
+                        t.update(userRef, { companyId: null, role: '無業', salary: 0, jobHistory: hist, currentJoinDate: null });
+                    });
+                    setUser({ ...user, companyId: null, role: '無業', salary: 0 });
+                    setView('personal');
+                    notify("✅ 已離職");
+                } catch(e) { notify("離職失敗"); console.error(e); }
+            };
+
+            const procureAction = async (action, req, db, cls, user, notify) => {
+                const { doc, updateDoc, arrayUnion, getDoc } = window.firebaseModules;
+                const compRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies', user.companyId);
+                if(action === 'approve') {
+                    const { runTransaction } = window.firebaseModules;
+                    let processed = false;
+                    await runTransaction(db, async (t) => {
+                        const cDoc = await t.get(compRef);
+                        const currentReqs = cDoc.data().requests || [];
+                        if (!currentReqs.some(r => r.id === req.id && r.type === 'procure_audit')) return;
+                        processed = true;
+                        const newReqs = currentReqs.filter(r => r.id !== req.id);
+                        const finReq = { ...req, type: 'finance_audit', status: 'pending', desc: req.desc + ' (採購核准)' };
+                        t.update(compRef, { requests: [...newReqs, finReq] });
+                    });
+                    notify(processed ? "已轉交財務" : "⚠️ 此單據已處理過");
+                } else {
+                    if (req.tag === 'b2b_incoming_quote') {
+                        try {
+                            const { runTransaction } = window.firebaseModules;
+                            const sellerRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies', req.sellerId);
+                            await runTransaction(db, async (t) => {
+                                const sSnap = await t.get(sellerRef);
+                                const cDoc = await t.get(compRef);
+                                const currentReqs = cDoc.data().requests || [];
+                                if (!currentReqs.some(r => r.id === req.id)) return;
+                                if (sSnap.exists()) {
+                                    let sInv = [...(sSnap.data().inventory || [])];
+                                    sInv.push({id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, name: req.item, cost: (req.originalCost || 0), quantity: req.qty, source: "買方採購退回庫存"});
+                                    t.update(sellerRef, { inventory: sInv });
+                                }
+                                const newReqs = currentReqs.filter(r => r.id !== req.id);
+                                t.update(compRef, { requests: newReqs });
+                            });
+                        } catch (e) { console.error("退回庫存失敗", e); }
+                    } else {
+                        await safeRemoveRequest(compRef, req.id);
+                    }
+                    notify("已駁回，若為報價單則貨物已退回賣方");
+                }
+            };
+
+            const submitQuote = async (demandId, price) => {
+                if(!price || Number(price) <= 0) return notify("❌ 報價必須為正數");
+                const { doc, updateDoc, arrayUnion } = window.firebaseModules;
+                const dRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'demands', demandId);
+                const companyName = comps[user.companyId]?.name || '未知公司';
+                const quote = { companyId: user.companyId, companyName, price: Number(price), time: new Date().toLocaleString('zh-TW') };
+                await updateDoc(dRef, { quotes: arrayUnion(quote) });
+                notify("已報價");
+            };
+
+            const updateHousing = async (key) => {
+                const { doc, updateDoc } = window.firebaseModules;
+                const opt = HOUSING_OPTIONS[key];
+                if (!opt) return;
+                const currentOpt = HOUSING_OPTIONS[user.housing || "none"];
+                if (currentOpt.type === 'buy') return notify("❌ 已購屋，無法變更住屋");
+                if (key === user.housing) return notify("已是目前住屋");
+                let bal = user.personalBalance || 0;
+                if (opt.type === 'buy') {
+                    if (bal < opt.down) return notify("❌ 存款不足以支付頭期款");
+                    bal -= opt.down;
+                }
+                await updateDoc(doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'users', user.id), { housing: key, personalBalance: bal });
+                notify(`🏠 已選擇：${opt.label}`);
+                setShowHousing(false);
+            };
+
+            const updateFamily = async (data) => {
+                const { doc, updateDoc } = window.firebaseModules;
+                if ((user.children || 0) > data.children) return notify("❌ 小孩數量不可減少");
+                await updateDoc(doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'users', user.id), { family: data.family, children: data.children, familyConfirmed: true });
+                notify("✅ 家庭狀況已更新");
+                setShowFamily(false);
+            };
+
+            const deleteDemandQuote = async (demandId, quoteIdx) => {
+                const { doc, runTransaction } = window.firebaseModules;
+                const dRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'demands', demandId);
+                try {
+                    await runTransaction(db, async (t) => {
+                        const snap = await t.get(dRef);
+                        if (!snap.exists()) return;
+                        const arr = [...(snap.data().quotes || [])];
+                        arr.splice(quoteIdx, 1);
+                        t.update(dRef, { quotes: arr });
+                    });
+                    notify("已刪除報價");
+                } catch (e) { notify("刪除失敗"); }
+            };
+
+            const adjustCompanyCapital = async (compId, amount, desc) => {
+                const { doc, runTransaction } = window.firebaseModules;
+                const cRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies', compId);
+                // Fix G: 罰款不得讓公司資金變負；若資產不足則自動截斷至 0
+                let resultAmount = amount;
+                let wasClamped = false;
+                try {
+                    await runTransaction(db, async (t) => {
+                        // 每次 transaction retry 都重置（避免狀態洩漏）
+                        resultAmount = amount;
+                        wasClamped = false;
+                        const snap = await t.get(cRef);
+                        if (!snap.exists()) return;
+                        const d = snap.data();
+                        const curCap = d.capital || 0;
+                        if (amount < 0 && curCap + amount < 0) {
+                            resultAmount = -curCap; // 只罰到資金歸零為止
+                            wasClamped = true;
+                        }
+                        const newCap = curCap + resultAmount;
+                        const actualDesc = wasClamped ? `${desc} (資金不足，已截斷)` : desc;
+                        const tx = [{ desc: actualDesc, amount: resultAmount, time: new Date().toLocaleString('zh-TW'), user: "老師" }, ...(d.transactions || [])].slice(0, 500);
+                        t.update(cRef, { capital: newCap, transactions: tx });
+                    });
+                    if (wasClamped) {
+                        notify(`⚠️ 公司資金不足，僅罰款 $${Math.abs(resultAmount).toLocaleString()} (已截斷至 0)`);
+                    } else {
+                        notify(amount < 0 ? `已罰款 $${Math.abs(amount).toLocaleString()}` : `已發獎金 $${amount.toLocaleString()}`);
+                    }
+                } catch (e) { notify("操作失敗"); }
+            };
+
+            // === 稅務結算 ===
+            const settleAllVat = async () => {
+                const { doc, runTransaction } = window.firebaseModules;
+                let totalTaxed = 0, count = 0;
+                try {
+                    for (const c of Object.values(comps)) {
+                        const cRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies', c.id);
+                        await runTransaction(db, async (t) => {
+                            const snap = await t.get(cRef);
+                            if (!snap.exists()) return;
+                            const d = snap.data();
+                            const tx = d.transactions || [];
+                            const totalSales = tx.filter(isVatRevenue).reduce((s, x) => s + x.amount, 0);
+                            const already = d.vatBaseSettled || 0;
+                            const taxableBase = Math.max(0, totalSales - already);
+                            const tax = Math.round(taxableBase * VAT_RATE);
+                            if (tax <= 0) {
+                                t.update(cRef, { vatBaseSettled: Math.max(totalSales, already) });
+                                return;
+                            }
+                            const cap = d.capital || 0;
+                            const actualTax = Math.min(tax, Math.max(0, cap));
+                            const clamped = actualTax < tax;
+                            const desc = `營業稅 ${(VAT_RATE*100).toFixed(0)}% (應稅銷售 $${taxableBase.toLocaleString()})` + (clamped ? " (資金不足，已截斷)" : "");
+                            const newTx = [{ desc, amount: -actualTax, time: new Date().toLocaleString('zh-TW'), user: "稅務" }, ...tx].slice(0, 500);
+                            t.update(cRef, { capital: cap - actualTax, transactions: newTx, vatBaseSettled: Math.max(totalSales, already) });
+                            totalTaxed += actualTax; count += 1;
+                        });
+                    }
+                    notify(`✅ 月結營業稅完成，共扣 ${count} 家公司、合計 $${totalTaxed.toLocaleString()}`);
+                } catch (e) { console.error(e); notify("❌ 營業稅結算失敗"); }
+                setTaxModal(null);
+            };
+
+            const settleAllIncomeTax = async () => {
+                const { doc, runTransaction } = window.firebaseModules;
+                let totalTaxed = 0, count = 0, skipped = 0;
+                try {
+                    for (const c of Object.values(comps)) {
+                        const cRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies', c.id);
+                        await runTransaction(db, async (t) => {
+                            const snap = await t.get(cRef);
+                            if (!snap.exists()) return;
+                            const d = snap.data();
+                            if (d.yearEndTaxSettled) { skipped += 1; return; }
+                            const tx = d.transactions || [];
+                            const revenue = tx.filter(isVatRevenue).reduce((s, x) => s + x.amount, 0);
+                            const expense = tx.filter(isBusinessExpense).reduce((s, x) => s + Math.abs(x.amount), 0);
+                            const profit = revenue - expense;
+                            const tax = profit > 0 ? Math.round(profit * INCOME_TAX_RATE) : 0;
+                            if (tax <= 0) {
+                                t.update(cRef, { yearEndTaxSettled: true });
+                                return;
+                            }
+                            const cap = d.capital || 0;
+                            const actualTax = Math.min(tax, Math.max(0, cap));
+                            const clamped = actualTax < tax;
+                            const desc = `營所稅 ${(INCOME_TAX_RATE*100).toFixed(0)}% (淨利 $${profit.toLocaleString()})` + (clamped ? " (資金不足，已截斷)" : "");
+                            const newTx = [{ desc, amount: -actualTax, time: new Date().toLocaleString('zh-TW'), user: "稅務" }, ...tx].slice(0, 500);
+                            t.update(cRef, { capital: cap - actualTax, transactions: newTx, yearEndTaxSettled: true });
+                            totalTaxed += actualTax; count += 1;
+                        });
+                    }
+                    let msg = `✅ 期末營所稅完成，共扣 ${count} 家、合計 $${totalTaxed.toLocaleString()}`;
+                    if (skipped > 0) msg += `；${skipped} 家已結算過自動跳過`;
+                    notify(msg);
+                } catch (e) { console.error(e); notify("❌ 營所稅結算失敗"); }
+                setTaxModal(null);
+            };
+
+            const resetAllTaxSettlement = async () => {
+                const { doc, updateDoc } = window.firebaseModules;
+                try {
+                    await Promise.all(Object.values(comps).map(c =>
+                        updateDoc(doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies', c.id), { vatBaseSettled: 0, yearEndTaxSettled: false })
+                    ));
+                    notify("🔓 已重置所有公司的稅務結算記錄");
+                } catch (e) { notify("重置失敗"); console.error(e); }
+                setShowResetTaxConfirm(false);
+            };
+
+            const dismissOrphanage = async () => {
+                if (!user) return;
+                const { doc, updateDoc } = window.firebaseModules;
+                try {
+                    await updateDoc(doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'users', user.id), { orphanagePending: false });
+                } catch (e) { console.error("關閉孤兒院畫面失敗", e); }
+            };
+
+            const resetStudentPwd = async (uid, newPwd) => {
+                const { doc, updateDoc } = window.firebaseModules;
+                try {
+                    await updateDoc(doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'users', uid), { password: newPwd });
+                    notify("✅ 密碼已重置");
+                    setShowResetPwd(false);
+                } catch (e) { notify("重置失敗"); }
+            };
+
+            const teacherAction = async (type, payload) => {
+                const { collection, addDoc, doc, runTransaction } = window.firebaseModules;
+                if(type === 'post_demand') {
+                    if (!payload.qty || payload.qty <= 0) return notify("❌ 數量必須為正整數");
+                    await addDoc(collection(db, 'artifacts', DB_VERSION, 'classes', cls, 'demands'), { item: payload.item, qty: payload.qty, status: 'open', quotes: [], time: new Date().toLocaleString('zh-TW') });
+                    notify("需求已發布");
+                }
+                if(type === 'accept_quote') {
+                    const { demandId, quote, demandItem, demandQty } = payload;
+                    if (!quote.price || quote.price <= 0 || !demandQty || demandQty <= 0) return notify("❌ 報價或數量異常，無法決標");
+                    try {
+                        await runTransaction(db, async (t) => {
+                            const dRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'demands', demandId);
+                            const cRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies', quote.companyId);
+                            const dSnap = await t.get(dRef);
+                            const cSnap = await t.get(cRef);
+                            if (!dSnap.exists() || !cSnap.exists()) throw new Error("資料不存在");
+                            if (dSnap.data().status !== 'open') throw new Error("此單已結案");
+                            const cData = cSnap.data();
+                            const revenue = quote.price * demandQty;
+                            // 先做所有讀取（Firestore 規則：reads 必須在 writes 之前）
+                            const salesEmp = (cData.employees || []).find(e => e.role === '業務經理');
+                            let salesUserRef = null, salesUserSnap = null;
+                            if (salesEmp) {
+                                salesUserRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'users', salesEmp.id);
+                                salesUserSnap = await t.get(salesUserRef);
+                            }
+                            // 計算真實 COGS (FIFO)，扣庫存前計算
+                            const avgUnitCost = getExactFifoCost(cData.inventory, demandItem, demandQty);
+                            const cogs = avgUnitCost * demandQty;
+                            const profit = revenue - cogs;
+                            let newInv;
+                            try { newInv = deductInventory(cData.inventory, demandItem, demandQty); } catch(e) { throw new Error("廠商庫存不足"); }
+                            // 開始寫入
+                            t.update(cRef, { capital: cData.capital + revenue, inventory: newInv, transactions: [{desc:`政府採購: ${demandItem} x${demandQty}`, amount:revenue, time:new Date().toLocaleString('zh-TW'), user:"政府"}, ...cData.transactions].slice(0,500) });
+                            t.update(dRef, { status: 'closed', winner: quote.companyName });
+                            if (salesUserRef && salesUserSnap && salesUserSnap.exists()) {
+                                t.update(salesUserRef, { cumulativeProfit: (salesUserSnap.data().cumulativeProfit || 0) + profit });
+                            }
+                        });
+                        notify("✅ 已決標，資金已轉入廠商");
+                    } catch(e) { notify("❌ 決標失敗: " + (e.message || e)); }
+                }
+            };
+
+            const LoanAction = async (user, compId, amount, db, cls, notify) => {
+                if (!amount || amount <= 0) return notify("❌ 貸款金額必須大於 0");
+                const req = { id: Date.now().toString() + Math.random().toString(36).slice(2), type: 'teacher_loan', amount: amount, desc: `申請貸款 $${amount.toLocaleString()}`, applicant: user.name, status: 'pending' };
+                const { doc, updateDoc, arrayUnion } = window.firebaseModules;
+                await updateDoc(doc(db,'artifacts',DB_VERSION,'classes',cls,'companies',compId), { requests: arrayUnion(req) });
+                notify("🏦 貸款申請已送出");
+            };
+
+            const TeacherLoanAction = async (compId, reqId, approve, amount, db, cls, notify, safeRemoveRequest) => {
+                const { doc, runTransaction } = window.firebaseModules;
+                const cRef = doc(db,'artifacts',DB_VERSION,'classes',cls,'companies',compId);
+                if(approve) {
+                    let processed = false;
+                    await runTransaction(db, async (t) => {
+                        const snap = await t.get(cRef);
+                        const currentReqs = snap.data().requests || [];
+                        if (!currentReqs.some(r => r.id === reqId)) return;
+                        processed = true;
+                        const newReqs = currentReqs.filter(r => r.id !== reqId);
+                        t.update(cRef, {
+                            capital: snap.data().capital + amount,
+                            loan: (snap.data().loan || 0) + amount,
+                            requests: newReqs,
+                            transactions: [{desc:`銀行貸款`, amount: amount, time: new Date().toLocaleString('zh-TW'), user: "老師"}, ...(snap.data().transactions||[])].slice(0, 500)
+                        });
+                    });
+                    notify(processed ? "✅ 貸款已核撥" : "⚠️ 此申請已處理過");
+                } else {
+                    await safeRemoveRequest(cRef, reqId);
+                    notify("已駁回");
+                }
+            };
+
+            const hrAction = async (action, payload) => {
+                const { doc, updateDoc, arrayUnion, getDoc } = window.firebaseModules;
+                const compRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies', user.companyId);
+                const userRef = payload.userId ? doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'users', payload.userId) : null;
+                try {
+                    if (action === 'hire') {
+    if (Number(payload.salary) < 0) return notify("❌ 薪資不能為負數！");
+    if (!userRef) return notify("錯誤：找不到使用者");
+                        const { runTransaction } = window.firebaseModules;
+                        await runTransaction(db, async (t) => {
+                            const userSnap = await t.get(userRef);
+                            const userData = userSnap.data();
+                            if (userData && userData.companyId) throw new Error(`❌ 無法錄取：${userData.name} 須先離職`);
+                            const cSnap = await t.get(compRef);
+                            const newReqs = (cSnap.data().requests || []).filter(r => r.id !== payload.reqId);
+                            t.update(compRef, { employees: arrayUnion({id: payload.userId, name: payload.name, role: payload.role, salary: Number(payload.salary)}), requests: newReqs });
+                            t.update(userRef, { companyId: user.companyId, role: payload.role, salary: Number(payload.salary), currentJoinDate: new Date().toLocaleDateString('zh-TW') });
+                        });
+                        notify(`✅ 已錄取 ${payload.name}`);
+                    }
+                    if (action === 'reject') { await safeRemoveRequest(compRef, payload.reqId); notify("已拒絕申請"); }
+                    if (action === 'fire') {
+                        const { runTransaction } = window.firebaseModules;
+                        await runTransaction(db, async (t) => {
+                            const cSnap = await t.get(compRef);
+                            const uSnap = await t.get(userRef);
+                            if(!cSnap.exists()) throw new Error("操作失敗");
+                            const uData = uSnap.exists() ? uSnap.data() : {};
+                            const newEmps = (cSnap.data().employees||[]).filter(e => e.id !== payload.userId);
+                            const hist = [...(uData.jobHistory || []), { compId: user.companyId, compName: cSnap.data().name, role: uData.role, salary: uData.salary || 0, joinDate: uData.currentJoinDate || '-', leaveDate: new Date().toLocaleDateString('zh-TW'), note: '解雇' }];
+                            t.update(compRef, { employees: newEmps });
+                            t.update(userRef, { companyId: null, role: "無業", salary: 0, jobHistory: hist, currentJoinDate: null });
+                        });
+                        notify("❌ 已解雇");
+                    }
+                    if (action === 'set_salary') {
+    if (Number(payload.salary) < 0) return notify("❌ 薪資不能為負數！");
+                        const { runTransaction } = window.firebaseModules;
+                        await runTransaction(db, async (t) => {
+                            const cSnap = await t.get(compRef);
+                            let emps = JSON.parse(JSON.stringify(cSnap.data().employees || []));
+                            const idx = emps.findIndex(e => e.id === payload.userId);
+                            if(idx > -1) { emps[idx].salary = Number(payload.salary); }
+                            t.update(compRef, { employees: emps });
+                            t.update(userRef, { salary: Number(payload.salary) });
+                        });
+                        notify("✅ 薪資已調整");
+                    }
+                } catch(e) { notify("操作失敗"); console.error(e); }
+            };
+
+            const financeAction = async (action, payload) => {
+                const { doc, updateDoc, writeBatch, collection, query, where, getDocs, runTransaction, arrayUnion, getDoc } = window.firebaseModules;
+                const compRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies', user.companyId);
+                try {
+                    if (action === 'pay_all') {
+                        const q = query(collection(db, 'artifacts', DB_VERSION, 'classes', cls, 'users'), where("companyId", "==", user.companyId));
+                        const [snap, compSnap] = await Promise.all([getDocs(q), getDoc(compRef)]);
+                        if (!compSnap.exists()) return notify("❌ 讀取失敗");
+                        let totalPay = 0; const updates = [];
+                        const bonusRatio = compSnap.data().bonusRatio || 0;
+                        snap.forEach(uDoc => {
+                            const d = uDoc.data();
+                            const salary = d.salary || 0;
+                            const bonus = Math.round(salary * bonusRatio / 100);
+                            const pay = salary + bonus;
+                            totalPay += pay;
+                            updates.push({ref: uDoc.ref, pay, currentBal: d.personalBalance || 0});
+                        });
+                        if (compSnap.data().capital < totalPay) return notify("❌ 資金不足");
+if (totalPay < 0) return notify("❌ 總發放金額異常，不能發放負數薪水！");
+                        const { increment: inc } = window.firebaseModules;
+                        const batch = writeBatch(db);
+                        batch.update(compRef, { capital: inc(-totalPay), transactions: [{desc:"發薪資", amount: -totalPay, time: new Date().toLocaleString('zh-TW'), user: user.name}, ...compSnap.data().transactions].slice(0,500) });
+                        updates.forEach(u => batch.update(u.ref, { personalBalance: inc(u.pay), pendingBonus: 0 }));
+                        await batch.commit(); notify(`💰 發薪完成`);
+                    }
+                    if (action === 'audit') {
+                        const req = payload.req;
+                        if (payload.approve) {
+                            if (!req.cost || req.cost <= 0 || !req.qty || req.qty <= 0) return notify("❌ 單據金額或數量異常，無法核准");
+                            // 資金不足檢查在 transaction 內部進行（避免使用 stale 的本地 state）
+                            if (req.tag === 'b2b_buy') {
+                                const sellerRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies', req.sellerId);
+                                // Fix B: 在 transaction 內讀取最新 buyer 名稱（避免 stale state）
+                                await runTransaction(db, async (t) => {
+                                    const cDoc = await t.get(compRef);
+                                    if (!(cDoc.data().requests || []).some(r => r.id === req.id)) throw new Error("此單據已處理");
+                                    const buyerName = cDoc.data().name;
+                                    const orderReq = { id: Date.now().toString() + Math.random().toString(36).slice(2), type: 'sales_audit', tag: 'b2b_incoming_order', buyerId: user.companyId, buyerName, item: req.item, qty: req.qty, unitCost: req.unitCost, cost: req.cost, desc: `收到訂單: ${buyerName} 欲採購 ${req.item} x${req.qty}`, applicant: "系統轉發", status: 'pending' };
+                                    const newReqs = (cDoc.data().requests || []).filter(r => r.id !== req.id);
+                                    t.update(compRef, { requests: newReqs });
+                                    t.update(sellerRef, { requests: arrayUnion(orderReq) });
+                                });
+                                notify("✅ 採購核准，已發送訂單給賣方業務等待同意");
+                            } else if (req.tag === 'b2b_incoming_quote') {
+                                const sellerRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies', req.sellerId);
+                                await runTransaction(db, async (t) => {
+                                    const sDoc = await t.get(sellerRef);
+                                    const bDoc = await t.get(compRef);
+                                    if (!(bDoc.data().requests || []).some(r => r.id === req.id)) throw new Error("此單據已處理");
+                                    if (bDoc.data().capital < req.cost) throw new Error("資金不足");
+                                    // Fix #4: 先讀賣方業務經理 user doc（Firestore 規則：reads 必須在 writes 之前）
+                                    const sData = sDoc.data();
+                                    const salesEmp3 = (sData.employees || []).find(e => e.role === '業務經理');
+                                    let salesUserRef3 = null, salesUserSnap3 = null;
+                                    if (salesEmp3) {
+                                        salesUserRef3 = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'users', salesEmp3.id);
+                                        salesUserSnap3 = await t.get(salesUserRef3);
+                                    }
+                                    // 用 originalCost 計算真實 profit（sell_b2b_quote 階段已記錄）
+                                    const cogs3 = (req.originalCost || 0) * req.qty;
+                                    const profit3 = req.cost - cogs3;
+                                    let bInv = [...bDoc.data().inventory];
+                                    bInv.push({id:`${Date.now()}-${Math.random().toString(36).slice(2)}`, name:req.item, cost:req.unitCost, quantity:req.qty, source:req.vendor});
+                                    const newReqs = (bDoc.data().requests || []).filter(r => r.id !== req.id);
+                                    t.update(compRef, { capital: bDoc.data().capital - req.cost, inventory: bInv, requests: newReqs, transactions: [{desc:req.desc, amount:-req.cost, time:new Date().toLocaleString('zh-TW'), user:"財務"}, ...bDoc.data().transactions].slice(0,500) });
+                                    // Fix #6: desc 補上品項/數量/買方
+                                    t.update(sellerRef, { capital: sData.capital + req.cost, transactions: [{desc:`報價成交出貨: ${req.item} x${req.qty} 給 ${bDoc.data().name}`, amount:req.cost, time:new Date().toLocaleString('zh-TW'), user:"系統"}, ...sData.transactions].slice(0,500) });
+                                    // Fix #4: 累加賣方業務經理累計利潤
+                                    if (salesUserRef3 && salesUserSnap3 && salesUserSnap3.exists()) {
+                                        t.update(salesUserRef3, { cumulativeProfit: (salesUserSnap3.data().cumulativeProfit || 0) + profit3 });
+                                    }
+                                });
+                                notify("✅ 報價單核准，交易完成");
+                            } else {
+                                await runTransaction(db, async (t) => {
+                                    const cDoc = await t.get(compRef);
+                                    if (!(cDoc.data().requests || []).some(r => r.id === req.id)) throw new Error("此單據已處理");
+                                    if (cDoc.data().capital < req.cost) throw new Error("資金不足");
+                                    const newReqs = (cDoc.data().requests || []).filter(r => r.id !== req.id);
+                                    let updateData = { capital: cDoc.data().capital - req.cost, requests: newReqs, transactions: [{desc:req.desc, amount:-req.cost, time:new Date().toLocaleString('zh-TW'), user:"財務"}].concat(cDoc.data().transactions).slice(0, 500) };
+                                    if (req.tag === 'upgrade_tech') {
+                                        if ((cDoc.data().techLevel || 1) >= 3) throw new Error("已達最高技術等級 (Lv3)，無法再升級");
+                                        updateData.techLevel = (cDoc.data().techLevel || 1) + 1;
+                                    }
+                                    else {
+                                        let newInv = [...cDoc.data().inventory];
+                                        newInv.push({id:`${Date.now()}-${Math.random().toString(36).slice(2)}`, name:req.item, cost:req.unitCost, quantity:req.qty, source:req.tag==='produce'?'自研':req.vendor});
+                                        updateData.inventory = newInv;
+                                    }
+                                    t.update(compRef, updateData);
+                                });
+                                notify("✅ 支出核准");
+                            }
+                        } else {
+                            if (req.tag === 'b2b_incoming_quote') {
+                                const sellerRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies', req.sellerId);
+                                await runTransaction(db, async (t) => {
+                                    const sDoc = await t.get(sellerRef);
+                                    const cDoc = await t.get(compRef);
+                                    const currentReqs = cDoc.data().requests || [];
+                                    if (!currentReqs.some(r => r.id === req.id)) return;
+                                    let sInv = [...(sDoc.data().inventory || [])];
+                                    sInv.push({id:`${Date.now()}-${Math.random().toString(36).slice(2)}`, name:req.item, cost: (req.originalCost || 0), quantity:req.qty, source:"退貨回補"});
+                                    const newReqs = currentReqs.filter(r => r.id !== req.id);
+                                    t.update(sellerRef, { inventory: sInv });
+                                    t.update(compRef, { requests: newReqs });
+                                });
+                                notify("已拒絕，貨物退回賣方");
+                            } else if (req.tag === 'produce' && req.deductedItems && req.deductedItems.length > 0) {
+                                await runTransaction(db, async (t) => {
+                                    const cDoc = await t.get(compRef);
+                                    const currentReqs = cDoc.data().requests || [];
+                                    if (!currentReqs.some(r => r.id === req.id)) return;
+                                    let currentInv = [...(cDoc.data().inventory || [])];
+                                    req.deductedItems.forEach(item => {
+                                        currentInv.push({
+                                            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                                            name: item.name,
+                                            cost: item.cost || 0,
+                                            quantity: item.qty,
+                                            source: "財務駁回退回"
+                                        });
+                                    });
+                                    const newReqs = currentReqs.filter(r => r.id !== req.id);
+                                    t.update(compRef, { inventory: currentInv, requests: newReqs });
+                                });
+                                notify("已駁回生產單，原物料已退回庫存");
+                            } else {
+                                await safeRemoveRequest(compRef, req.id);
+                                notify("已駁回");
+                            }
+                        }
+                    }
+                    if (action === 'set_bonus') { 
+    if (Number(payload.ratio) < 0) return notify("❌ 分紅比例不能為負數！");
+    await updateDoc(compRef, { bonusRatio: Number(payload.ratio) }); 
+    notify("分紅更新"); 
+}
+                } catch(e) { console.error(e); notify("失敗: " + e.message); }
+            };
+
+            const salesAction = async (action, req) => {
+                const { doc, runTransaction } = window.firebaseModules;
+                const compRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies', user.companyId);
+                const buyerRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies', req.buyerId);
+                if (action === 'approve') {
+                    if (!req.cost || req.cost <= 0 || !req.qty || req.qty <= 0) return notify("❌ 訂單金額或數量異常，無法核准");
+                    try {
+                        await runTransaction(db, async (t) => {
+                            const sDoc = await t.get(compRef);
+                            const bDoc = await t.get(buyerRef);
+                            if (!sDoc.exists() || !bDoc.exists()) throw new Error("公司資料庫讀取失敗");
+                            const sData = sDoc.data();
+                            const bData = bDoc.data();
+                            if (!(sData.requests || []).some(r => r.id === req.id)) throw new Error("此訂單已處理");
+                            // 先做所有讀取（Firestore 規則：reads 必須在 writes 之前）
+                            const salesEmp2 = (sData.employees || []).find(e => e.role === '業務經理');
+                            let salesUserRef2 = null, salesUserSnap2 = null;
+                            if (salesEmp2) {
+                                salesUserRef2 = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'users', salesEmp2.id);
+                                salesUserSnap2 = await t.get(salesUserRef2);
+                            }
+                            // 計算真實 COGS (FIFO)，扣庫存前計算
+                            const avgUnitCost2 = getExactFifoCost(sData.inventory, req.item, req.qty);
+                            const cogs2 = avgUnitCost2 * req.qty;
+                            const profit2 = req.cost - cogs2;
+                            const sInv = deductInventory(sData.inventory, req.item, req.qty);
+                            if (bData.capital < req.cost) throw new Error(`買方 ${req.buyerName} 資金不足，交易無法成立`);
+                            let bInv = [...bData.inventory];
+                            bInv.push({ id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, name: req.item, cost: req.unitCost, quantity: req.qty, source: sData.name });
+                            const newReqs = sData.requests.filter(r => r.id !== req.id);
+                            // 開始寫入
+                            t.update(compRef, { inventory: sInv, capital: sData.capital + req.cost, requests: newReqs, transactions: [{ desc: `同業訂單出貨: ${req.item} x${req.qty} 給 ${req.buyerName}`, amount: req.cost, time: new Date().toLocaleString('zh-TW'), user: user.name }, ...sData.transactions].slice(0, 500) });
+                            t.update(buyerRef, { inventory: bInv, capital: bData.capital - req.cost, transactions: [{ desc: `採購到貨: 向 ${sData.name} 買 ${req.item} x${req.qty}`, amount: -req.cost, time: new Date().toLocaleString('zh-TW'), user: "系統到貨" }, ...bData.transactions].slice(0, 500) });
+                            if (salesUserRef2 && salesUserSnap2 && salesUserSnap2.exists()) {
+                                t.update(salesUserRef2, { cumulativeProfit: (salesUserSnap2.data().cumulativeProfit || 0) + profit2 });
+                            }
+                        });
+                        notify("✅ 訂單已同意，雙方庫存與資金已結算完成");
+                    } catch (e) { notify("❌ 失敗: " + e.message); }
+                } else if (action === 'reject') {
+                    // Fix #23: 拒絕時在買方公司寫一則 amount=0 的通知 transaction
+                    const { runTransaction } = window.firebaseModules;
+                    try {
+                        await runTransaction(db, async (t) => {
+                            const cSnap = await t.get(compRef);
+                            const bSnap = await t.get(buyerRef);
+                            if (!cSnap.exists()) throw new Error("公司不存在");
+                            const currentReqs = cSnap.data().requests || [];
+                            if (!currentReqs.some(r => r.id === req.id)) return;
+                            const newReqs = currentReqs.filter(r => r.id !== req.id);
+                            t.update(compRef, { requests: newReqs });
+                            if (bSnap.exists()) {
+                                const bData = bSnap.data();
+                                t.update(buyerRef, {
+                                    transactions: [{
+                                        desc: `B2B 採購遭拒: 向 ${cSnap.data().name} 買 ${req.item} x${req.qty}`,
+                                        amount: 0,
+                                        time: new Date().toLocaleString('zh-TW'),
+                                        user: "系統"
+                                    }, ...(bData.transactions || [])].slice(0, 500)
+                                });
+                            }
+                        });
+                        notify("已拒絕該筆訂單，已通知買方");
+                    } catch (e) { notify("拒絕失敗: " + e.message); }
+                }
+            };
+
+            const opAction = async (type, payload) => {
+                const { doc, updateDoc, arrayUnion } = window.firebaseModules;
+                const compRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies', user.companyId);
+                const comp = comps[user.companyId];
+                if (type === 'req_buy') {
+                    if (!payload.qty || payload.qty <= 0) return notify("❌ 數量必須為正整數");
+                    const totalCost = payload.cost * payload.qty;
+                    const req = { id: Date.now().toString() + Math.random().toString(36).slice(2), type: 'finance_audit', tag: 'buy', item: payload.item, qty: payload.qty, unitCost: payload.cost, cost: totalCost, desc: `進口: ${payload.item} x${payload.qty}`, vendor: payload.vendor, applicant: user.name, status: 'pending' };
+                    await updateDoc(compRef, { requests: arrayUnion(req) });
+                    notify("📝 採購單已送出");
+                }
+                if (type === 'req_produce') {
+                    const batches = payload.qty;
+                    if (!batches || batches <= 0 || !Number.isInteger(batches)) return notify("❌ 生產批次必須為正整數");
+                    const outputQty = batches * (payload.recipe.yield || 1);
+                    const manufactureCost = payload.recipe.cost * batches;  // 製造費（現金支出）
+                    const { runTransaction } = window.firebaseModules;
+                    try {
+                        await runTransaction(db, async (t) => {
+                            const cDoc = await t.get(compRef);
+                            let newInv = [...(cDoc.data().inventory || [])];
+                            const deductedItems = [];
+                            let rawMatTotal = 0;  // 原料總成本（FIFO）
+                            for (let need of payload.recipe.needs) {
+                                const required = need.qty * batches;
+                                const cost = getExactFifoCost(newInv, need.name, required);
+                                rawMatTotal += cost * required;
+                                newInv = deductInventory(newInv, need.name, required);
+                                deductedItems.push({ name: need.name, qty: required, cost });
+                            }
+                            const inventoryUnitCost = (manufactureCost + rawMatTotal) / outputQty;  // 含原料的全成本
+                            const req = { id: Date.now().toString() + Math.random().toString(36).slice(2), type: 'teacher_iso', itemName: payload.recipe.name, qty: outputQty, unitCost: inventoryUnitCost, cost: manufactureCost, desc: `生產: ${payload.recipe.name} x${outputQty}`, applicant: user.name, status: 'pending', tag: 'produce', deductedItems, rawMatTotal };
+                            t.update(compRef, { inventory: newInv, requests: [...(cDoc.data().requests || []), req] });
+                        });
+                        notify("📝 ISO 申請已送出");
+                    } catch(err) { notify(`❌ ${err.message}`); }
+                }
+                if (type === 'req_b2b_buy') {
+                    if (!payload.qty || payload.qty <= 0) return notify("❌ 數量必須為正整數");
+                    if (!payload.price || payload.price <= 0) return notify("❌ 單價必須為正數");
+                    if (payload.sellerId === user.companyId) return notify("❌ 不能向自己公司採購");
+                    const totalCost = payload.price * payload.qty;
+                    const req = { id: Date.now().toString() + Math.random().toString(36).slice(2), type: 'finance_audit', tag: 'b2b_buy', item: payload.item, qty: payload.qty, unitCost: payload.price, cost: totalCost, desc: `採購: 向${payload.vendorName}買 ${payload.item} x${payload.qty}`, vendor: payload.vendorName, sellerId: payload.sellerId, applicant: user.name, status: 'pending' };
+                    await updateDoc(compRef, { requests: arrayUnion(req) });
+                    notify("📝 採購單已送交財務");
+                }
+                if (type === 'req_virtual_buy') {
+                    if (!payload.qty || payload.qty <= 0) return notify("❌ 數量必須為正整數");
+                    if (!payload.price || payload.price <= 0) return notify("❌ 單價異常");
+                    const totalCost = payload.price * payload.qty;
+                    const req = { id: Date.now().toString() + Math.random().toString(36).slice(2), type: 'finance_audit', tag: 'virtual_buy', item: payload.item, qty: payload.qty, unitCost: payload.price, cost: totalCost, desc: `虛擬廠採購: 向 ${payload.vendorName} 買 ${payload.item} x${payload.qty}`, vendor: payload.vendorName, applicant: user.name, status: 'pending' };
+                    await updateDoc(compRef, { requests: arrayUnion(req) });
+                    notify("📝 虛擬廠採購單已送交財務");
+                }
+                if (type === 'upgrade_tech') {
+                    if ((comp.techLevel || 1) >= 3) return notify("❌ 已達最高技術等級 (Lv3)");
+                    const req = { id: Date.now().toString() + Math.random().toString(36).slice(2), type: 'finance_audit', tag: 'upgrade_tech', item: "技術升級", qty: 1, unitCost: TECH_UPGRADE_COST, cost: TECH_UPGRADE_COST, desc: `研發: 升級至 Lv${(comp.techLevel||1)+1}`, applicant: user.name, status: 'pending' };
+                    await updateDoc(compRef, { requests: arrayUnion(req) });
+                    notify("📝 升級申請已送交財務");
+                }
+                if (type === 'req_loan') { await LoanAction(user, user.companyId, payload.amount, db, cls, notify); }
+                if (type === 'sell_b2b_quote') {
+                    if (!payload.qty || payload.qty <= 0) return notify("❌ 數量必須為正整數");
+                    if (!payload.price || payload.price <= 0) return notify("❌ 單價必須為正數");
+                    if (payload.targetId === user.companyId) return notify("❌ 不能報價給自己公司");
+                    try { deductInventory(comp.inventory, payload.itemName, payload.qty); } catch(e) { return notify(e.message); }
+                    const { doc, runTransaction } = window.firebaseModules;
+                    const targetRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies', payload.targetId);
+                    const targetComp = comps[payload.targetId];
+                    if (!targetComp) return notify("❌ 找不到目標公司");
+                    const isTargetDown = targetComp.type.includes('下游');
+                    const reqType = isTargetDown ? 'procure_audit' : 'finance_audit';
+                    await runTransaction(db, async (t) => {
+                        const cDoc = await t.get(compRef);
+                        const tDoc = await t.get(targetRef);
+                        const cData = cDoc.data();
+                        const newInv = deductInventory(cData.inventory, payload.itemName, payload.qty);
+                        const exactCost = getExactFifoCost(cData.inventory, payload.itemName, payload.qty);
+                        const req = { id: Date.now().toString() + Math.random().toString(36).slice(2), type: reqType, tag: 'b2b_incoming_quote', sellerId: user.companyId, vendor: comp.name, item: payload.itemName, qty: payload.qty, unitCost: payload.price, cost: payload.price * payload.qty, originalCost: exactCost, desc: `報價: ${comp.name} 銷售 ${payload.itemName} x${payload.qty}`, applicant: user.name, status: 'pending' };
+                        t.update(compRef, { inventory: newInv });
+                        t.update(targetRef, { requests: [...(tDoc.data().requests || []), req] });
+                    });
+                    notify("📝 報價單已送出，等待對方審核");
+                }
+            };
+
+            if (view === 'loading') return <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50"><div className="loader mb-4"></div><p className="text-slate-400 text-sm">🔄 正在恢復您的身分...</p></div>;
+
+            if (view === 'class_select') return (
+                <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4 main-container">
+                    <NewsBanner text={globalNews} />
+                    <div className="absolute top-12 right-4"><FullscreenToggle /></div>
+                    <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md text-center">
+                        <h1 className="text-2xl font-bold mb-6 text-slate-800">我的科技業之路</h1>
+                        {CLASS_LIST.map(c => <Button key={c.id} className="w-full mb-3 py-3 text-lg" onClick={()=>{setCls(c.id); setView('login');}}>{c.name}</Button>)}
+                        <div className="text-xs text-gray-400 mt-4">{mode==='online'?'🟢 雲端連線':'🔴 連線中...'}</div>
+                    </div>
+                </div>
+            );
+
+            if (view === 'login') return (
+                <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 main-container">
+                    <div className="absolute top-4 right-4"><FullscreenToggle /></div>
+                    <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-sm">
+                        <button onClick={()=>{setCls(null); setView('class_select');}} className="text-sm text-slate-400 mb-4">⬅ 回選單</button>
+                        <div className="bg-blue-50 p-4 rounded-lg mb-6 border border-blue-100">
+                            <h3 className="font-bold text-blue-800 mb-2">學生登入/註冊</h3>
+                            <input id="sName" placeholder="姓名" className="w-full p-2 border rounded mb-2" />
+                            <input id="sPwd" type="password" placeholder="密碼" className="w-full p-2 border rounded mb-2" />
+                            <Button className="w-full" onClick={async ()=>{ const n=document.getElementById('sName').value, p=document.getElementById('sPwd').value; if(!n||!p)return notify("請輸入完整"); await handleLogin(n, p); }}>進入系統</Button>
+                        </div>
+                        <div className="border-t pt-4">
+                            <h3 className="font-bold text-slate-700 mb-2">老師登入</h3>
+                            <input id="tPwd" type="password" placeholder="老師密碼" className="w-full p-2 border rounded mb-2" />
+                            <Button color="gray" className="w-full" onClick={handleTeacherLogin}>進入中控台</Button>
+                        </div>
+                    </div>
+                    {msg && <div className="notification-toast">{msg}</div>}
+                </div>
+            );
+
+            if (view === 'personal') {
+                if(!user) return null;
+                return (
+                    <div className="min-h-screen bg-slate-100 p-4 fade-in main-container">
+                        <NewsBanner text={globalNews} />
+                        <header className="bg-white p-4 rounded-xl shadow mb-4 flex justify-between items-center flex-wrap gap-2">
+                            <div>
+                                <h1 className="font-bold text-xl">{user.name}{user.isBankrupt && <span className="ml-2 text-xs bg-red-600 text-white px-2 py-0.5 rounded">💀 已破產</span>}</h1>
+                                <p className="text-sm text-slate-500">存款: <span className={`font-mono font-bold ${(user.personalBalance || 0) < 0 ? 'text-red-600' : 'text-emerald-600'}`}>${(user.personalBalance || 0).toLocaleString()}</span></p>
+                                <p className="text-xs text-slate-400">每月生活費試算：${computeTotalLivingCost(user).toLocaleString()} (基礎 ${computeBaseLiving(user).toLocaleString()} + 房 ${computeMonthlyHousing(user).toLocaleString()})</p>
+                                {(user.missedLivingCost || 0) > 0 && !user.isBankrupt && <p className="text-xs text-red-600 font-bold">⚠️ 已連續 {user.missedLivingCost} 次付不出生活費，再 1 次將宣告破產！</p>}
+                            </div>
+                            <div className="flex gap-2 flex-wrap">
+                                <Button color="blue" className="text-xs px-2 py-1" onClick={()=>setShowHousing(true)}>🏠 住屋</Button>
+                                <Button color="purple" className="text-xs px-2 py-1" onClick={()=>setShowFamily(true)}>👨‍👩‍👧 家庭</Button>
+                                <Button color="green" className="text-xs px-2 py-1" onClick={()=>setShowResume(true)}>📄 履歷</Button>
+                                <Button color="yellow" className="text-xs px-2 py-1" onClick={()=>setShowPwdModal(true)}>🔑 修改密碼</Button>
+                                <FullscreenToggle />
+                                <Button color="gray" onClick={doLogout}>登出</Button>
+                            </div>
+                        </header>
+                        {user.companyId ? (
+                            <div className="bg-white p-8 rounded-xl shadow text-center">
+                                <h2 className="text-2xl font-bold mb-2">您任職於：{comps[user.companyId]?.name}</h2>
+                                <p className="mb-4 text-lg">職位：<span className={`role-badge role-${ROLE_CLASS_MAP[user.role] || 'default'}`}>{user.role}</span> | 月薪：${(user.salary || 0).toLocaleString()}</p>
+                                <div className="flex gap-4 justify-center"><Button className="px-8 py-4 text-xl shadow-lg" onClick={()=>setView('company')}>🏢 進入公司</Button><Button color="red" onClick={()=>setShowLeaveConfirm(true)}>👋 離職</Button></div>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {Object.keys(comps).length === 0 ? <div className="text-center py-10 text-slate-400">⚠️ 系統尚未初始化...</div> :
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {Object.values(comps).map(c => {
+                                            const hasCEO = (c.employees||[]).some(e=>e.role==='CEO');
+                                            const isDown = c.type.includes('下游');
+                                            const displayRoles = isDown ? ROLES.map(r=>r==='研發經理'?'採購經理':r) : ROLES;
+                                            return (
+                                                <Card key={c.id} className="hover:shadow-md transition-shadow">
+                                                    <div className="flex justify-between items-center mb-3"><h3 className="font-bold text-lg">{c.name}</h3><span className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-500">{c.type}</span></div>
+                                                    <div className="flex gap-2">
+                                                        <select id={`role-${c.id}`} className="p-2 border rounded text-sm flex-1">{displayRoles.map(r=><option key={r} value={r}>{r}</option>)}</select>
+                                                        <Button onClick={async ()=>{
+                                                            let r = document.getElementById(`role-${c.id}`).value;
+                                                            const dbRole = r;
+                                                            const {doc,updateDoc,arrayUnion}=window.firebaseModules;
+                                                            try {
+                                                                if (dbRole === 'CEO') {
+                                                                    if (hasCEO) return notify("該公司已有 CEO！");
+                                                                    const sal = ROLE_SALARIES['CEO'];
+                                                                    const {runTransaction} = window.firebaseModules;
+                                                                    const userRefCEO = doc(db,'artifacts',DB_VERSION,'classes',cls,'users',user.id);
+                                                                    const compRefCEO = doc(db,'artifacts',DB_VERSION,'classes',cls,'companies',c.id);
+                                                                    try {
+                                                                        await runTransaction(db, async (t) => {
+                                                                            const cSnap = await t.get(compRefCEO);
+                                                                            const uSnap = await t.get(userRefCEO);
+                                                                            if (!cSnap.exists()) throw new Error("公司不存在");
+                                                                            if (uSnap.exists() && uSnap.data().companyId) throw new Error("您已任職其他公司，請先離職");
+                                                                            const currentEmps = cSnap.data().employees || [];
+                                                                            if (currentEmps.some(e => e.role === 'CEO')) throw new Error("該公司已有 CEO！");
+                                                                            t.update(userRefCEO, {companyId:c.id, role:'CEO', salary:sal, currentJoinDate: new Date().toLocaleDateString('zh-TW')});
+                                                                            t.update(compRefCEO, {employees: [...currentEmps, {id:user.id, name:user.name, role:'CEO', salary:sal}]});
+                                                                        });
+                                                                        setUser({...user, companyId:c.id, role:'CEO', salary:sal});
+                                                                        setView('company');
+                                                                    } catch (err) { return notify("❌ " + err.message); }
+                                                                } else {
+                                                                    const req = {id:Date.now().toString() + Math.random().toString(36).slice(2), type:'job_application', userId:user.id, name:user.name, role:dbRole, status:'pending'};
+                                                                    await updateDoc(doc(db,'artifacts',DB_VERSION,'classes',cls,'companies',c.id), {requests:arrayUnion(req)});
+                                                                    notify("📝 面試申請已送出");
+                                                                }
+                                                            } catch(e) { notify("操作失敗"); }
+                                                        }}>應徵</Button>
+                                                    </div>
+                                                </Card>
+                                            );
+                                        })}
+                                    </div>
+                                }
+                            </div>
+                        )}
+                        {showPwdModal && <PwdModal onClose={()=>setShowPwdModal(false)} onSubmit={handleChangePassword} />}
+                        {showLeaveConfirm && <ConfirmModal title="離職確認" message="確定要離開公司嗎？" onConfirm={handleLeave} onCancel={()=>setShowLeaveConfirm(false)} />}
+                        {showHousing && <HousingModal user={user} onClose={()=>setShowHousing(false)} onConfirm={updateHousing} />}
+                        {showFamily && <FamilyModal user={user} onClose={()=>setShowFamily(false)} onConfirm={updateFamily} />}
+                        {showResume && <ResumeModal user={user} comps={comps} onClose={()=>setShowResume(false)} />}
+                        {user.orphanagePending && <OrphanageModal studentName={user.name} children={user.children || 0} onClose={dismissOrphanage} />}
+                        {msg && <div className="notification-toast">{msg}</div>}
+                    </div>
+                );
+            }
+
+            if (view === 'company') {
+                const c = comps[user.companyId];
+                if(!c) return <div className="p-10 text-center">Loading...</div>;
+                const role = user.role;
+                const isCEO = role==='CEO';
+                const isHR = role==='人資經理' || isCEO;
+                const isFin = role==='財務長';
+                const isSales = role==='業務經理';
+                const isDownstream = c.type.includes('下游');
+                const isProcure = role==='採購經理' || (isDownstream && role==='研發經理');
+                const isRnD = role==='研發經理' && !isDownstream;
+                const techLvl = c.techLevel || 1;
+                const aggInventory = getAggregatedInventory(c.inventory);
+
+                return (
+                    <div className="min-h-screen bg-slate-100 pb-20 fade-in main-container">
+                        <NewsBanner text={globalNews} />
+                        <header className="bg-white p-4 shadow sticky top-0 z-20 flex justify-between items-center flex-wrap gap-2">
+                            <div><h1 className="font-bold text-lg">{c.name} <span className="text-xs bg-purple-100 text-purple-700 px-2 rounded">Lv{techLvl}</span></h1><span className={`role-badge role-${ROLE_CLASS_MAP[role] || 'default'}`}>{user.name} ({role})</span></div>
+                            <div className="flex gap-2">
+                                {isCEO && <Button color="blue" className="text-sm py-1" onClick={()=>setShowCharts(c)}>📊 全部圖表</Button>}
+                                {!isCEO && (isFin || isSales || isHR || isProcure || isRnD) && <Button color="blue" className="text-sm py-1" onClick={()=>setShowCharts(c)}>📈 我的圖表</Button>}
+                                <FullscreenToggle />
+                                <Button color="gray" className="text-sm py-1" onClick={()=>setView('personal')}>離開</Button>
+                            </div>
+                        </header>
+                        <div className="p-4 max-w-4xl mx-auto space-y-6">
+                            <div className="grid grid-cols-2 gap-4">
+                                <Card className="text-center border-l-4 border-emerald-500"><div className="text-slate-500 text-sm">公司資金</div><div className={`text-2xl font-bold ${c.capital<0?'text-red-600':'text-emerald-600'}`}>${c.capital.toLocaleString()}</div></Card>
+                                <Card className="text-center border-l-4 border-blue-500"><div className="text-slate-500 text-sm">庫存總量</div><div className="text-2xl font-bold">{c.inventory.reduce((a,b)=>a+(b.quantity||0),0)}</div></Card>
+                            </div>
+
+                            {isHR && (
+                                <Card className="border-t-4 border-amber-400 relative">
+                                    <div className="absolute top-0 right-0 bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-bl">HR</div>
+                                    <h3 className="font-bold text-amber-800 mb-4">👥 人力資源</h3>
+                                    <div className="mb-4">
+                                        <h4 className="font-bold text-sm text-slate-600 mb-2">求職信箱</h4>
+                                        {c.requests.filter(r=>r.type==='job_application').length===0 ? <p className="text-xs text-slate-400">無申請</p> : c.requests.filter(r=>r.type==='job_application').map(req => (
+                                            <div key={req.id} className="flex justify-between items-center bg-slate-50 p-2 rounded mb-1 border">
+                                                <span className="text-sm"><b>{req.name}</b> 應徵 {req.role}</span>
+                                                <div className="flex gap-1">
+                                                    <input id={`sal-${req.id}`} type="number" min="0" step="1" onKeyDown={blockNonInt} placeholder="薪資" className="w-20 p-1 border rounded text-xs" defaultValue={ROLE_SALARIES[isDownstream && req.role==='研發經理' ? '採購經理' : req.role] || 40000} />
+                                                    <Button color="green" className="py-0 px-2 text-xs" onClick={()=>hrAction('hire', {userId:req.userId, name:req.name, role:req.role, salary:document.getElementById(`sal-${req.id}`).value, reqId:req.id})}>錄取</Button>
+                                                    <Button color="red" className="py-0 px-2 text-xs" onClick={()=>hrAction('reject', {reqId:req.id})}>拒</Button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-sm text-slate-600 mb-2">員工管理 & 薪資調整</h4>
+                                        <div className="space-y-2">
+                                            {(c.employees||[]).map(e => (
+                                                <div key={e.id} className="bg-slate-50 p-2 rounded text-sm border">
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <span className="font-bold">{e.name} <span className="font-normal text-slate-500">({e.role})</span></span>
+                                                        {e.role !== 'CEO' && <Button color="red" className="py-0 px-1 text-xs" onClick={()=>hrAction('fire', {userId:e.id, name:e.name, role:e.role})}>解雇</Button>}
+                                                    </div>
+                                                    <div className="flex gap-2 items-center">
+                                                        <span className="text-xs text-slate-500">月薪:</span>
+                                                        <input key={e.salary} id={`sal-adj-${e.id}`} type="number" min="0" step="1" onKeyDown={blockNonInt} defaultValue={e.salary || 40000} className="w-20 p-1 border rounded text-xs" />
+                                                        <Button color="blue" className="py-0 px-2 text-xs" onClick={async ()=>{ const newSal = document.getElementById(`sal-adj-${e.id}`).value; if(newSal) await hrAction('set_salary', {userId:e.id, salary:newSal}); }}>調薪</Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </Card>
+                            )}
+
+                            {isFin && (
+                                <Card className="border-t-4 border-emerald-500 relative">
+                                    <div className="absolute top-0 right-0 bg-emerald-100 text-emerald-800 text-xs px-2 py-1 rounded-bl">財務</div>
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="font-bold text-emerald-800">💰 財務審核</h3>
+                                        <Button color="purple" onClick={() => setShowReport(true)}>📊 查看財務報表</Button>
+                                    </div>
+                                    <div className="flex gap-2 mb-4">
+                                        <Button color="blue" className="flex-1 py-3" onClick={()=>financeAction('pay_all')}>💸 發放薪資</Button>
+                                        <div className="flex-1 flex gap-1 items-center border p-1 rounded bg-slate-50"><span className="text-xs font-bold whitespace-nowrap">分紅%</span><input id="bonusInput" type="number" min="0" step="1" onKeyDown={blockNonInt} defaultValue={c.bonusRatio} className="w-full p-1 border rounded text-xs" /><Button className="py-1 px-2 text-xs" onClick={()=>financeAction('set_bonus', {ratio:document.getElementById('bonusInput').value})}>設</Button></div>
+                                    </div>
+                                    <div className="mt-2 border-t pt-2 mb-4">
+                                        <h4 className="font-bold text-sm text-slate-600 mb-2">🏦 資金週轉</h4>
+                                        <div className="flex gap-2">
+                                            <input id="loanAmt" type="number" min="1" step="1" onKeyDown={blockNonInt} placeholder="金額" className="w-full p-1 border rounded text-xs" />
+                                            <Button color="purple" className="py-0 px-2 text-xs" onClick={async ()=>{ const amt = document.getElementById('loanAmt').value; if(!amt) return; await LoanAction(user, user.companyId, Number(amt), db, cls, notify); document.getElementById('loanAmt').value = ""; }}>申請貸款</Button>
+                                        </div>
+                                        <div className="mt-1 text-xs text-slate-400">目前負債: ${(c.loan||0).toLocaleString()} (申請需老師核准)</div>
+                                    </div>
+                                    <h4 className="font-bold text-sm text-slate-600 mb-2">待審單據 ({c.requests.filter(r=>r.type==='finance_audit').length})</h4>
+                                    {c.requests.filter(r=>r.type==='finance_audit').map(req => (
+                                        <div key={req.id} className="bg-red-50 p-2 rounded mb-2 border border-red-100">
+                                            <div className="text-sm mb-1"><b>{req.desc}</b> (${req.cost.toLocaleString()})</div>
+                                            {req.tag==='b2b_buy' && <div className="text-xs text-blue-600 mb-1">對象: {req.vendor}</div>}
+                                            {req.tag==='b2b_incoming_quote' && <div className="text-xs text-purple-600 mb-1">來自賣方: {req.vendor} 的報價</div>}
+                                            <div className="flex justify-end gap-2"><Button color="green" className="py-0 px-3 text-xs" onClick={()=>financeAction('audit', {req, approve:true})}>准許</Button><Button color="red" className="py-0 px-3 text-xs" onClick={()=>financeAction('audit', {req, approve:false})}>駁回</Button></div>
+                                        </div>
+                                    ))}
+                                    <div className="mt-4"><h4 className="font-bold text-sm text-slate-600">全公司薪資表</h4><div className="max-h-32 overflow-y-auto border p-2 rounded bg-slate-50 text-xs">{(c.employees||[]).map(e=>(<div key={e.id} className="flex justify-between"><span>{e.name}</span><span>${(e.salary||0).toLocaleString()}</span></div>))}</div></div>
+                                </Card>
+                            )}
+
+                            <Card className="border-t-4 border-blue-500 relative">
+                                <div className="absolute top-0 right-0 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-bl">營運</div>
+                                <h3 className="font-bold text-slate-700 mb-4">🏭 營運操作</h3>
+
+                                {(isCEO || isRnD) && !isDownstream && (
+                                    <div className="mb-4 pb-4 border-b">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="font-bold text-sm text-purple-800">🚀 科技研發 (目前 Lv{techLvl})</span>
+                                            {techLvl < 3 && <Button color="purple" className="py-0 px-2 text-xs" onClick={()=>opAction('upgrade_tech')}>升級 (費用${TECH_UPGRADE_COST.toLocaleString()})</Button>}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {(isRnD || isProcure) && (
+                                    <div className="space-y-4 mb-6 pb-4 border-b">
+                                        <B2BShop myCompId={c.id} allComps={comps} onBuy={opAction} notify={notify} />
+                                        {!c.type.includes('上游') && <VirtualVendorShop onBuy={opAction} notify={notify} />}
+                                        {!isDownstream && (
+                                            <div className="bg-slate-50 p-3 rounded">
+                                                <h4 className="font-bold text-sm mb-2 text-blue-800">🚚 原料進口 (向老師購買)</h4>
+                                                {RAW_MATS[c.id] ? (<div className="flex gap-2 items-center"><span className="text-sm flex-1">{RAW_MATS[c.id].name} (${RAW_MATS[c.id].cost.toLocaleString()})</span><input id="buyQty" type="number" min="1" step="1" onKeyDown={blockNonInt} placeholder="數量" className="w-16 p-1 border rounded" /><Button className="py-1 text-xs" onClick={async ()=>{ const q=document.getElementById('buyQty').value; if(!q) return; await opAction('req_buy', {item:RAW_MATS[c.id].name, cost:RAW_MATS[c.id].cost, qty:Number(q), vendor:"進口"}); }}>申請</Button></div>) : (<p className="text-xs text-slate-400">本公司無需進口基礎原料，請使用上方 B2B 採購。</p>)}
+                                            </div>
+                                        )}
+                                        {!isDownstream && RECIPES[c.id] && (
+                                            <div className="bg-slate-50 p-3 rounded mt-4">
+                                                <h4 className="font-bold text-sm mb-2 text-purple-800">🔨 生產 (需審核)</h4>
+                                                {Object.entries(RECIPES[c.id]).filter(([lvl]) => Number(lvl) <= techLvl).map(([lvl, recipe]) => (
+                                                    <div key={lvl} className="mb-2 border-b pb-2 last:border-0">
+                                                        <div className="flex justify-between text-xs font-bold mb-1">
+                                                            <span>Lv{lvl} {recipe.name}</span>
+                                                            <span className="text-slate-500">${(recipe.cost/recipe.yield).toLocaleString()}/個</span>
+                                                        </div>
+                                                        <div className="flex gap-2 items-center">
+                                                            <span className="text-xs flex-1 text-slate-500">需: {recipe.needs.map(n=>`${n.name}x${n.qty}`).join(', ')}</span>
+                                                            <input id={`prodQty-${lvl}`} type="number" min="1" step="1" onKeyDown={blockNonInt} placeholder="批次" className="w-12 p-1 border rounded text-xs" />
+                                                            <Button color="green" className="py-0 px-2 text-xs" onClick={async ()=>{ const q=document.getElementById(`prodQty-${lvl}`).value; if(!q) return; await opAction('req_produce', {recipe, qty:Number(q)}); }}>生產</Button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                <div className="mt-2 text-xs space-y-1">{(c.requests||[]).filter(r => r.tag==='produce' || r.type==='teacher_iso').map(r => (<div key={r.id} className="flex items-center gap-1 text-purple-600"><span>⏳ {r.desc}</span><span className="bg-white px-1 border rounded">{r.type==='teacher_iso'?'等老師 ISO':'等財務'}</span></div>))}</div>
+                                            </div>
+                                        )}
+                                        {isDownstream && (
+                                            <div className="mt-4">
+                                                <h4 className="font-bold text-sm mb-2 text-purple-800">📦 採購審核 (進貨單)</h4>
+                                                <div className="space-y-2">
+                                                    {c.requests.filter(r=>r.type==='procure_audit').length===0 ? <p className="text-xs text-slate-400">無待審報價單</p> :
+                                                        c.requests.filter(r=>r.type==='procure_audit').map(req => (
+                                                            <div key={req.id} className="bg-blue-50 p-2 rounded mb-2 border border-blue-100">
+                                                                <div className="text-sm mb-1"><b>{req.desc}</b> (${req.cost.toLocaleString()})</div>
+                                                                <div className="text-xs text-slate-500 mb-2">來自: {req.vendor}</div>
+                                                                <div className="flex justify-end gap-2">
+                                                                    <Button color="green" className="py-0 px-3 text-xs" onClick={()=>procureAction('approve', req, db, cls, user, notify)}>准許 (轉財務)</Button>
+                                                                    <Button color="red" className="py-0 px-3 text-xs" onClick={()=>procureAction('reject', req, db, cls, user, notify)}>駁回</Button>
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    }
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {isSales && (
+                                    <div>
+                                        <h4 className="font-bold text-sm mb-2 text-blue-800">💵 銷售 & 報價</h4>
+                                        <div className="mb-4 bg-blue-50 p-2 rounded border border-blue-200">
+                                            <h5 className="font-bold text-xs text-blue-800 mb-2">🛒 待審核的同業訂單 (買方發來)</h5>
+                                            {c.requests.filter(r => r.type === 'sales_audit').length === 0 ? (
+                                                <span className="text-xs text-slate-400">目前無待處理訂單</span>
+                                            ) : (
+                                                c.requests.filter(r => r.type === 'sales_audit').map(req => (
+                                                    <div key={req.id} className="bg-white p-2 rounded mb-2 border shadow-sm text-xs">
+                                                        <div className="mb-1"><b>{req.buyerName}</b> 欲採購：</div>
+                                                        <div className="text-blue-700 font-bold">{req.item} x{req.qty}</div>
+                                                        <div className="text-slate-500 mb-2">總金額：${req.cost.toLocaleString()} (單價 ${req.unitCost})</div>
+                                                        <div className="flex gap-2 justify-end">
+                                                            <Button color="green" className="py-0 px-2" onClick={() => salesAction('approve', req)}>同意出貨</Button>
+                                                            <Button color="red" className="py-0 px-2" onClick={() => salesAction('reject', req)}>拒絕</Button>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                        <div className="mb-4 bg-purple-50 p-2 rounded border border-purple-200">
+                                            <h5 className="font-bold text-xs text-purple-800 mb-2">📤 主動報價給下游 (B2B)</h5>
+                                            {aggInventory.map((item, idx) => (
+                                                <div key={`qt-${idx}`} className="flex justify-between items-center mb-1 text-xs">
+                                                    <span>{item.name} (剩{item.quantity})</span>
+                                                    <Button color="purple" className="py-0 px-2" onClick={()=>setQuoteItem(item)}>報價</Button>
+                                                </div>
+                                            ))}
+                                            {aggInventory.length===0 && <span className="text-xs text-slate-400">無庫存可報價</span>}
+                                        </div>
+                                        {isDownstream && (
+                                            <div className="mt-4 pt-2 border-t">
+                                                <h4 className="font-bold text-sm mb-2 text-amber-800">📢 參與競標 (政府採購)</h4>
+                                                <p className="text-xs text-slate-500 mb-2">請注意老師發布的採購需求，得標後自動出貨。</p>
+                                                {demands.filter(d=>d.status==='open').map(d => (
+                                                    <div key={d.id} className="bg-amber-50 p-2 mb-1 rounded flex justify-between items-center text-xs">
+                                                        <span>{d.item} x{d.qty}</span>
+                                                        <div className="flex gap-1">
+                                                            <input id={`quote-${d.id}`} type="number" min="1" step="1" onKeyDown={blockNonInt} placeholder="$" className="w-16 border rounded" />
+                                                            <Button onClick={async ()=>{ const p=document.getElementById(`quote-${d.id}`).value; if(p) await submitQuote(d.id, p); }}>報價</Button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                <div className="mt-4 border-t pt-2"><h4 className="font-bold text-sm text-slate-600">📦 庫存清單</h4><div className="text-xs space-y-1 bg-white border p-2 rounded max-h-24 overflow-y-auto">{aggInventory.length===0?"無":aggInventory.map((i,k)=><div key={k} className="flex justify-between"><span>{i.name} (源:{i.source})</span><span>x{i.quantity} (均本:${Math.round(i.avgCost)})</span></div>)}</div></div>
+                            </Card>
+                        </div>
+
+                        {quoteItem && <SellerQuoteModal item={quoteItem} allComps={comps} myCompId={c.id} onClose={()=>setQuoteItem(null)} onConfirm={async (payload)=>{ await opAction('sell_b2b_quote', payload); setQuoteItem(null); }} />}
+                        {showReport && <FinancialReportModal transactions={c.transactions} capital={c.capital} onClose={()=>setShowReport(false)} />}
+                        {showCharts && <CompanyChartsModal company={showCharts} scope={isCEO ? 'all' : (isFin ? 'finance' : isRnD ? 'rnd' : isSales ? 'sales' : (role === '人資經理' ? 'hr' : isProcure ? 'procure' : 'all'))} onClose={()=>setShowCharts(null)} />}
+                        {msg && <div className="notification-toast">{msg}</div>}
+                    </div>
+                );
+            }
+
+            if (view === 'teacher') {
+                return (
+                    <div className="min-h-screen bg-slate-100 p-4 pb-20 fade-in main-container">
+                        <NewsBanner text={globalNews} />
+                        <header className="flex justify-between items-center mb-6 flex-wrap gap-2">
+                            <h1 className="font-bold text-xl">👨‍🏫 中控台 ({CLASS_LIST.find(x=>x.id===cls)?.name})</h1>
+                            <div className="flex gap-2 flex-wrap">
+                                <Button color="yellow" onClick={()=>setShowPwdModal(true)}>密碼</Button>
+                                <Button color="yellow" onClick={()=>setShowResetPwd(true)}>🔑 重置學生密碼</Button>
+                                <Button color="purple" onClick={()=>setShowNewsModal(true)}>📣 新聞</Button>
+                                <Button color="blue" onClick={()=>setShowLivingCostConfirm(true)}>扣生活費</Button>
+                                <Button color="blue" onClick={()=>setTaxModal('vat')}>📅 月結營業稅</Button>
+                                <Button color="yellow" onClick={()=>setTaxModal('income')}>📆 期末營所稅</Button>
+                                <Button color="gray" className="text-xs px-2" onClick={()=>setShowResetTaxConfirm(true)}>🔓 重置稅務</Button>
+                                <Button color="purple" onClick={()=>setShowHistory(true)}>📋 學生歷程</Button>
+                                <Button color="green" onClick={()=>setShowSettlement(true)}>🏆 結算</Button>
+                                <Button color="blue" onClick={()=>setShowTeacherCharts(true)}>📊 公司圖表</Button>
+                                <Button color="red" onClick={()=>setShowResetConfirm(true)}>重置</Button>
+                                <FullscreenToggle />
+                                <Button color="gray" onClick={doLogout}>登出</Button>
+                            </div>
+                        </header>
+
+                        <Card className="mb-6 border-l-4 border-blue-500 bg-blue-50">
+                            <h3 className="font-bold text-blue-800 mb-2">📢 政府採購需求</h3>
+                            <div className="flex gap-2 mb-4">
+                                <select id="demandItem" className="p-2 rounded border flex-1">
+                                    <option value="">選擇採購商品...</option>
+                                    {ALL_PRODUCTS.map(p => <option key={p} value={p}>{p}</option>)}
+                                </select>
+                                <input id="demandQty" placeholder="數量" type="number" min="1" step="1" onKeyDown={blockNonInt} className="p-2 rounded border w-20" />
+                                <Button onClick={async ()=>{ const i=document.getElementById('demandItem').value, q=document.getElementById('demandQty').value; if(!i||!q) return; await teacherAction('post_demand', {item:i, qty:Number(q)}); }}>發布</Button>
+                            </div>
+                            <div className="space-y-2">
+                                {demands.filter(d=>d.status==='open').map(d => (
+                                    <div key={d.id} className="bg-white p-3 rounded shadow-sm">
+                                        <div className="font-bold text-sm mb-2">{d.item} x{d.qty}</div>
+                                        {d.quotes.map((q, idx) => (
+                                            <div key={idx} className="flex justify-between items-center bg-slate-50 p-1 mb-1 rounded text-xs">
+                                                <span>{q.companyName}: ${q.price.toLocaleString()}</span>
+                                                <div className="flex gap-1">
+                                                    <Button color="green" className="py-0 px-2" onClick={()=>teacherAction('accept_quote', {demandId:d.id, quote:q, demandItem:d.item, demandQty:d.qty})}>成交</Button>
+                                                    <Button color="red" className="py-0 px-2" onClick={()=>deleteDemandQuote(d.id, idx)}>刪除</Button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ))}
+                            </div>
+                        </Card>
+
+                        {Object.values(comps).flatMap(c=>c.requests.filter(r=>r.type==='teacher_loan').map(r=>({...r, compId:c.id, compName:c.name}))).length > 0 && (
+                            <Card className="mb-6 border-l-4 border-amber-500 bg-amber-50">
+                                <h3 className="font-bold text-amber-800 mb-2">🏦 貸款申請審核</h3>
+                                {Object.values(comps).flatMap(c=>c.requests.filter(r=>r.type==='teacher_loan').map(r=>({...r, compId:c.id, compName:c.name}))).map(req => (
+                                    <div key={req.id} className="flex justify-between items-center bg-white p-2 rounded mb-1 shadow-sm">
+                                        <span className="text-sm"><b>{req.compName}</b> 申請貸款 <span className="text-red-600 font-bold">${req.amount.toLocaleString()}</span></span>
+                                        <div className="flex gap-1">
+                                            <Button color="green" className="py-0 px-2 text-xs" onClick={()=>TeacherLoanAction(req.compId, req.id, true, req.amount, db, cls, notify, safeRemoveRequest)}>核准</Button>
+                                            <Button color="red" className="py-0 px-2 text-xs" onClick={()=>TeacherLoanAction(req.compId, req.id, false, 0, db, cls, notify, safeRemoveRequest)}>駁回</Button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </Card>
+                        )}
+
+                        {Object.values(comps).flatMap(c=>c.requests.filter(r=>r.type==='teacher_iso').map(r=>({...r, compId:c.id, compName:c.name}))).length > 0 && (
+                            <Card className="mb-6 border-l-4 border-purple-500 bg-purple-50">
+                                <h3 className="font-bold text-purple-800 mb-2">🏭 ISO 審核</h3>
+                                {Object.values(comps).flatMap(c=>c.requests.filter(r=>r.type==='teacher_iso').map(r=>({...r, compId:c.id, compName:c.name}))).map(req => (
+                                    <div key={req.id} className="flex justify-between items-center bg-white p-2 rounded mb-1 shadow-sm">
+                                        <span className="text-sm"><b>{req.compName}</b> 產 {req.desc}</span>
+                                        <div className="flex gap-1">
+                                            <Button color="green" className="py-0 px-2 text-xs" onClick={async () => {
+                                                const {doc, runTransaction} = window.firebaseModules;
+                                                const cRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies', req.compId);
+                                                let processed = false;
+                                                await runTransaction(db, async (t) => {
+                                                    const cDoc = await t.get(cRef);
+                                                    const currentReqs = cDoc.data().requests || [];
+                                                    if (!currentReqs.some(r => r.id === req.id && r.type === 'teacher_iso')) return;
+                                                    processed = true;
+                                                    const newReqs = currentReqs.filter(r => r.id !== req.id);
+                                                    const finReq = { ...req, type: 'finance_audit', tag: 'produce', desc: `生產成本: ${req.itemName} x${req.qty}`, item: req.itemName, cost: req.cost, unitCost: req.unitCost, qty: req.qty };
+                                                    t.update(cRef, { requests: [...newReqs, finReq] });
+                                                });
+                                                notify(processed ? "✅ ISO 通過" : "⚠️ 此申請已處理過");
+                                            }}>通過</Button>
+                                            <Button color="red" className="py-0 px-2 text-xs" onClick={async () => {
+                                                const {doc, runTransaction} = window.firebaseModules;
+                                                const cRef = doc(db, 'artifacts', DB_VERSION, 'classes', cls, 'companies', req.compId);
+                                                let processed = false;
+                                                await runTransaction(db, async (t) => {
+                                                    const cSnap = await t.get(cRef);
+                                                    const currentReqs = cSnap.data().requests || [];
+                                                    if (!currentReqs.some(r => r.id === req.id)) return;
+                                                    processed = true;
+                                                    let currentInv = [...(cSnap.data().inventory || [])];
+                                                    (req.deductedItems || []).forEach(item => {
+                                                        currentInv.push({
+                                                            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                                                            name: item.name,
+                                                            cost: item.cost || 0,
+                                                            quantity: item.qty,
+                                                            source: "ISO駁回退回"
+                                                        });
+                                                    });
+                                                    const newReqs = currentReqs.filter(r => r.id !== req.id);
+                                                    t.update(cRef, { inventory: currentInv, requests: newReqs });
+                                                });
+                                                notify(processed ? "已駁回，原物料已退回" : "⚠️ 此申請已處理過");
+                                            }}>駁回</Button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </Card>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {Object.values(comps).sort((a,b)=>parseInt(a.id.split('-')[1])-parseInt(b.id.split('-')[1])).map(c => (
+                                <Card key={c.id}>
+                                    <div className="flex justify-between items-center mb-2"><h3 className="font-bold">{c.name}</h3><span className={c.capital<0?"text-red-600 font-mono":"text-emerald-600 font-mono"}>${c.capital.toLocaleString()}</span></div>
+                                    <div className="bg-slate-50 p-2 rounded mb-2 text-xs max-h-32 overflow-y-auto">
+                                        <p className="font-bold text-slate-500">員工 ({c.employees?.length||0})</p>
+                                        {(c.employees||[]).map(e=><div key={e.id} className="flex justify-between"><span>{e.name} ({e.role})</span><span>${(e.salary||0).toLocaleString()}</span></div>)}
+                                    </div>
+                                    <div className="flex gap-2 mt-2 flex-wrap">
+                                        <Button color="red" className="flex-1 py-1 text-xs" onClick={()=>setFineModal({compId:c.id, compName:c.name})}>💸 罰款</Button>
+                                        <Button color="green" className="flex-1 py-1 text-xs" onClick={()=>setBonusModal({compId:c.id, compName:c.name})}>🎁 發獎金</Button>
+                                        <Button color="blue" className="flex-1 py-1 text-xs" onClick={()=>setShowCharts(c)}>📈 圖表</Button>
+                                    </div>
+                                </Card>
+                            ))}
+                        </div>
+                        {showResetConfirm && <ConfirmModal title="⚠️ 嚴重警告" message={`確定要「徹底重置」${CLASS_LIST.find(c=>c.id===cls)?.name} 嗎？\n\n1. 所有公司資金、庫存、交易紀錄清空\n2. 所有學生帳號「完全刪除」(含住屋、家庭、履歷、存款、密碼等所有資料)\n3. 所有政府採購需求刪除\n\n適用於新學期開始、換一批學生時使用。\n學生下次登入時會以新帳號重新建立。`} onConfirm={handleInitConfirm} onCancel={()=>setShowResetConfirm(false)} />}
+                        {showLivingCostConfirm && <ConfirmModal title="扣除生活費" message={`將依照每位學生的「基礎生活費 + 每月房屋費用」進行扣款。\n單身基礎 $${BASE_LIVING_SINGLE.toLocaleString()} / 已婚 $${BASE_LIVING_MARRIED.toLocaleString()} + 小孩數 × $${CHILD_COST.toLocaleString()}。\n\n連續 2 次付不出 → 宣告破產，若有小孩會進入孤兒院畫面。`} onConfirm={chargeLivingCostConfirm} onCancel={()=>setShowLivingCostConfirm(false)} />}
+                        {showPwdModal && <PwdModal onClose={()=>setShowPwdModal(false)} onSubmit={handleChangePassword} />}
+                        {showNewsModal && <NewsModal onClose={()=>setShowNewsModal(false)} onSubmit={updateNews} />}
+                        {showHistory && <StudentHistoryModal users={allUsers} comps={comps} onClose={()=>setShowHistory(false)} />}
+                        {showSettlement && <SettlementModal users={allUsers} comps={comps} onClose={()=>setShowSettlement(false)} />}
+                        {showResetPwd && <ResetPwdModal users={allUsers} onClose={()=>setShowResetPwd(false)} onSubmit={resetStudentPwd} />}
+                        {showCharts && <CompanyChartsModal company={showCharts} scope="all" onClose={()=>setShowCharts(null)} />}
+                        {showTeacherCharts && <TeacherChartsPicker comps={comps} onClose={()=>setShowTeacherCharts(false)} onPick={(c)=>{ setShowTeacherCharts(false); setShowCharts(c); }} />}
+                        {fineModal && <AmountInputModal title={`對 ${fineModal.compName} 罰款`} color="red" defaultVal={1000000} onClose={()=>setFineModal(null)} onSubmit={async (v)=>{ await adjustCompanyCapital(fineModal.compId, -Math.abs(v), `罰款 $${Math.abs(v).toLocaleString()}`); setFineModal(null); }} />}
+                        {bonusModal && <AmountInputModal title={`發獎金給 ${bonusModal.compName}`} color="green" defaultVal={100000} onClose={()=>setBonusModal(null)} onSubmit={async (v)=>{ await adjustCompanyCapital(bonusModal.compId, Math.abs(v), `發獎金 $${Math.abs(v).toLocaleString()}`); setBonusModal(null); }} />}
+                        {taxModal && <TaxSettleModal mode={taxModal} comps={comps} onClose={()=>setTaxModal(null)} onConfirm={taxModal === 'vat' ? settleAllVat : settleAllIncomeTax} />}
+                        {showResetTaxConfirm && <ConfirmModal title="重置稅務結算" message="將所有公司的「已結營業稅基」歸 0、「期末營所稅旗標」解除。\n下次月結會把全部累計銷售再扣一次稅，請確認時機！" onConfirm={resetAllTaxSettlement} onCancel={()=>setShowResetTaxConfirm(false)} />}
+                        {orphanQueue.length > 0 && <OrphanageModal studentName={orphanQueue[0].name} children={orphanQueue[0].children} onClose={()=>setOrphanQueue(q=>q.slice(1))} />}
+                        {msg && <div className="notification-toast">{msg}</div>}
+                    </div>
+                );
+            }
+            return null;
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
